@@ -78,8 +78,8 @@ Generates this type of figures for TOP-1, TOP-2, TOP-3, TOP-5 and TOP-AVG:
 - To compare AFs on a same plot for a specific SMILES:
 
        python learning_curve_comp.py --acqf_list "["acqf_1", "acqf_2", "acqf_6"]" --smi "CC(=O)O[C@H]1CC[C@@]2(C)[C@@H](CC(=O)[C@@H]3[C@@H]2CC[C@]2(C)[C@@H]([C@H](C)CCCC(C)C)CC[C@@H]32)C1"
-
-![Active Learning Target Comparison](active_learning/regression/clean_run/lc_comp_tmp.png)     
+ 
+![Active Learning Target Comparison](active_learning/regression/clean_run/learning_curves_comp/lc_comp_tmp_1.png)    
 
 Note that the results detailed for each target can be found in [active_learning/regression/clean_run/learning_curves_comp](active_learning/regression/clean_run/learning_curves_comp) and can be computed using ```print_all_lc_comp.py```.
 
@@ -87,7 +87,7 @@ Note that the results detailed for each target can be found in [active_learning/
 
        python learning_curve.py --overwrite True
 
- ![Active Learning Summary](active_learning/regression/clean_run/summary_5_CC(=O)O[C@H]1CC[C@@]2(C)[C@@H](CC(=O)[C@@H]3[C@@H]2CC[C@]2(C)[C@@H]([C@H](C)CCCC(C)C)CC[C@@H]32)C1.png) 
+ ![Active Learning Summary](active_learning/regression/clean_run/learning_curves_10/summary_5_CC(=O)O[C@H]1CC[C@@]2(C)[C@@H](CC(=O)[C@@H]3[C@@H]2CC[C@]2(C)[C@@H]([C@H](C)CCCC(C)C)CC[C@@H]32)C1.png) 
 
 
 **experimental:** Same workflow for additional targets.
