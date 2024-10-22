@@ -312,9 +312,9 @@ def make_dist(acqf_lst, cluster, metric, dist_type, prefix, out, avg_run_data,
     acqfs["SMILES"] = res["SMILES"]
     melted  = acqfs.melt(id_vars=["SMILES"])
     if paper_style:
-        fig, ax = plt.subplots(figsize=(len(acqf_lst)*0.5, 3)) # 6,3
+        fig, ax = plt.subplots(figsize=(len(acqf_lst)*1, 5)) # 6,3
     else:
-        fig, ax = plt.subplots(figsize=(len(acqf_lst)*1.5, 3)) #12,6
+        fig, ax = plt.subplots(figsize=(len(acqf_lst)*1.5, 5)) #12,6
     
     if dist_type == "box":
         sns.boxplot(data=melted, x="variable", y="value", hue="variable",

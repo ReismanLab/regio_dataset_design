@@ -61,7 +61,7 @@ parser.add_argument('--run',
                     default='0')
 parser.add_argument('--df_folder',
                     help='Name for the folder where the precomputed descriptors are',
-                    default='preprocessed_reactions')
+                    default='preprocessed_reactions_no_unspec_no_intra')
 parser.add_argument('--alpha',
                     help='balance between uncertainty and reactivity weighting for the target site to orient selection alpha must be between 0 and 2',
                     default=1)
