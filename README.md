@@ -48,7 +48,7 @@ Contains the raw reaction data and scripts to featurize the reactants for the mo
 
 Generates this type of figures for TOP-1, TOP-2, TOP-3, TOP-5 and TOP-AVG:
        
-![TOP-1 for the predictions on large molecules](model_validation/regression/large_mol/dioxirane/average/heatmap_top1.png)
+![TOP-1 for the predictions on large molecules](model_validation/regression/large_mol/dioxirane/average/heatmap_TOP1.png)
 
        python perf_loo.py
        python figure_loo.py --run run_01 --desc Selected --model RF2
