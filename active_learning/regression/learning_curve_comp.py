@@ -12,8 +12,8 @@ from rdkit.Chem import Draw
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.base import clone
 try:
-    base_cwd = os.getcwd().split('regiochem')[0]
-    base_cwd = f"{base_cwd}/regiochem"
+    base_cwd = os.getcwd().split('regio_dataset_design')[0]
+    base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory, need to be in the 'notebooks' directory or subdirectory of it.")
 sys.path.append(f"{base_cwd}/utils/")

@@ -16,7 +16,8 @@ parser = argparse.ArgumentParser(description='Descriptor computation')
 parser.add_argument('--run',
                     help='Folder with results files')
 parser.add_argument('--rxn',
-                    help='Folder with preprocessed reactions', default = "dioxirane")
+                    help='Folder with preprocessed reactions', 
+                    default = "dioxirane")
 
 args = parser.parse_args()
 if args.run == None:
@@ -43,8 +44,8 @@ else:
 
 root = os.getcwd()
 try:
-    base_cwd = os.getcwd().split('regiochem')[0]
-    base_cwd = f"{base_cwd}/regiochem"
+    base_cwd = os.getcwd().split('regio_dataset_design')[0]
+    base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory, need to be in the 'notebooks' directory or subdirectory of it.")
 

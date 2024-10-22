@@ -5,8 +5,8 @@ import os
 root = os.getcwd()
 
 try:
-    base_cwd = os.getcwd().split('regiochem')[0]
-    base_cwd = f"{base_cwd}/regiochem"
+    base_cwd = os.getcwd().split('regio_dataset_design')[0]
+    base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory.")
 

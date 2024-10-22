@@ -13,8 +13,8 @@ print(os.getcwd())
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-base_cwd = os.getcwd().split('regiochem')[0]
-base_cwd = f"{base_cwd}/regiochem"
+base_cwd = os.getcwd().split('regio_dataset_design')[0]
+base_cwd = f"{base_cwd}/regio_dataset_design"
 sys.path.append(f"{base_cwd}/utils/")
 
 import descriptors as ds

@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 import numpy as np
 import warnings
+
 pd.set_option('mode.chained_assignment', None)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -24,9 +25,10 @@ parser.add_argument('--vmin',
 parser.add_argument('--vmax',
                     help='vmax')
 parser.add_argument('--rxn',
-                    help='Folder with preprocessed reactions', default = "preprocessed_reactions")
+                    help='Folder with preprocessed reactions', default = 'preprocessed_reactions_no_unspec_no_intra')
 parser.add_argument('--draw',
-                    help='Type of images: numbers or heatmap with colors: "colors" or "numbers"', default = "colors")
+                    help='Type of images: numbers or heatmap with colors: "colors" or "numbers"', 
+                    default = "colors")
 parser.add_argument('--dataset',
                     help='The dataset the runs were performed on, could be all the data (folders starting by "run_"), only the ones with specified stereo ("run_no_unspec_dia_") or the totally cleaned dataset (no unspecified data, no intra molecular reactions, protonated amines: "clean_run_)"', default = "clean_run")
 
@@ -38,21 +40,21 @@ else:
 
 if args.rxn == None:
     rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
-    rxn = "dioxirane"
-    dataset = "clean_run"
+    rxn        = "dioxirane"
+    dataset    = "clean_run"
     print(f"Reaction default: {rxn}")
 else:
     rxn_folder = args.rxn
 
 if rxn_folder in ['preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm']:
-    rxn = 'borylation'
+    rxn          = 'borylation'
     norm_big_mol = 22
-    dataset = "run_"
+    dataset      = "run_"
     print(f"Reaction used: {rxn}")
 elif rxn_folder in ['preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
-    rxn = "dioxirane"
+    rxn          = "dioxirane"
     norm_big_mol = 50
-    dataset = "clean_run"
+    dataset      = "clean_run"
     print(f"Reaction used: {rxn}")
 else:
     print("Unexpected folder name.\n please give one of these: \n'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra'\n'preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm'")
@@ -62,12 +64,13 @@ draw = args.draw
 
 root = os.getcwd()
 try:
-    base_cwd = os.getcwd().split('regiochem')[0]
-    base_cwd = f"{base_cwd}/regiochem"
+    base_cwd = os.getcwd().split('regio_dataset_design')[0]
+    base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory, need to be in the 'notebooks' directory or subdirectory of it.")
 
 sys.path.append(f"{base_cwd}/utils/")
+
 import metrics as mt    
 
 def get_top_avg(df, df_bde):
@@ -139,7 +142,7 @@ else:
     folders = [f for f in folders if dataset in f]
     if dataset == "run":
        folders = [f for f in folders if f[0] == "r"]
-    folders = [f for f in folders if 'run_03' not in f] # nan in run_03
+    #folders = [f for f in folders if 'run_03' not in f] # nan in run_03
     df_res_all = []
     for f in folders:
         df_results = get_df_res(rxn, f, rxn_folder, base_cwd, recompute=False)
@@ -180,8 +183,6 @@ else:
     df_res_std.to_csv(f"df_std_runs.csv")
 
 ## plot heatmaps
-if recompute:
-    exit()
     
 df_bde     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_bde.csv", index_col=0)
 
@@ -316,14 +317,15 @@ else:
         print("No files found")
         exit()
 
+mol_per_line = 3 
 max_mols  = len(df.index)
-num_lines = int(np.floor(max_mols/4)+1)
-fig, ax = plt.subplots(num_lines, 4, figsize=(4*4, 4*num_lines))
+num_lines = int(np.floor(max_mols/mol_per_line)+1)
+fig, ax = plt.subplots(num_lines, mol_per_line, figsize=(mol_per_line*mol_per_line, mol_per_line*num_lines))
 
 for i, smiles in enumerate(sorted(list(df.index))):
     smiles = Chem.CanonSmiles(smiles)
-    x_i = i // 4
-    y_i = i % 4
+    x_i = i // mol_per_line
+    y_i = i % mol_per_line
     if folder != 'average':
         y_pred = df.loc[smiles]['Y_pred']
         y_pred = ast.literal_eval(y_pred)
@@ -370,10 +372,10 @@ try:
 except:
     pass
 for j in range(i, len(list(df.index))):
-    x_i = j // 4
-    y_i = j % 4
+    x_i = j // mol_per_line
+    y_i = j % mol_per_line
     ax[x_i,y_i].axis('off')
 
 print(f"Saving {figname}")
-fig.savefig(figname, bbox_inches='tight', dpi=300)
+fig.savefig(figname, bbox_inches='tight', dpi=600)
 print(f"Saved {figname}")

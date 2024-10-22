@@ -14,8 +14,8 @@ rxn_mapper = RXNMapper()
 root = os.getcwd()
 
 try:
-    base_cwd = os.getcwd().split('regiochem')[0]
-    base_cwd = f"{base_cwd}/regiochem"
+    base_cwd = os.getcwd().split('regio_dataset_design')[0]
+    base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory, need to be in the 'notebooks' directory or subdirectory of it.")
 
@@ -430,9 +430,9 @@ def add_dois_to_df(df, rxn_folder="reaction_data",dois_to_start_with=['10.1021/j
         df: dataframe with the reaction data and the DOI of the reaction
     """
     print(f"Root: {root}")
-    new_root = root.split('regiochem')[0]
+    new_root = root.split('regio_dataset_design')[0]
     print(f"New Root: {new_root}")
-    path = f"{new_root}regiochem/data/{rxn_folder}/numbered_reaction.csv"
+    path = f"{new_root}regio_dataset_design/data/{rxn_folder}/numbered_reaction.csv"
     print(f"Path: {path}")
     dois = []
     
