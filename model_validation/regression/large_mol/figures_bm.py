@@ -203,7 +203,7 @@ else:
 
 def plot_heat_map(df_res_mean, df_res_std, target, rxn, folder, vmin, vmax, reverse = False, round_ = 1): 
      
-    table = df_res_mean.pivot("Descriptor", "Model" ,target) 
+    table = df_res_mean.pivot(index="Descriptor", columns="Model", values=target)
     table = table.reindex(['BDE', 'Rdkit-Vbur', 'DBSTEP', 'Gasteiger', 'ENV-1', 'ENV-2', 'XTB', 'Custom', 'Selected'])
     table = table.reindex(['RF2', 'RF-OPT-XTB', 'KNN', 'LR', 'MLP2', 'MLP', 'SVR', 'GPR'], axis =1)
     for i in table.columns:
@@ -212,7 +212,7 @@ def plot_heat_map(df_res_mean, df_res_std, target, rxn, folder, vmin, vmax, reve
                 table.loc[j,i] = 100*table.loc[j,i]/norm_big_mol
 
     if folder == 'average': 
-        table_std = df_res_std.pivot("Descriptor", "Model" ,target)
+        table_std = df_res_std.pivot(index="Descriptor", columns="Model", values=target)
         table_std = table_std.reindex(['BDE', 'Rdkit-Vbur', 'DBSTEP', 'Gasteiger', 'ENV-1', 'ENV-2', 'XTB', 'Custom', 'Selected'])
         table_std = table_std.reindex(['RF2', 'RF-OPT-XTB', 'KNN', 'LR', 'MLP2', 'MLP', 'SVR', 'GPR'], axis =1)
         for i in table_std.columns:

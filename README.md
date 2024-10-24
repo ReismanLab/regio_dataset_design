@@ -13,7 +13,13 @@ Following is a folder by folder description.
 
 ## installation
 
-For best usage please install a conda environement using the ```regio_data.yml``` file.
+Installation of the package requires the existence of conda.
+For best usage please install a conda environement using the ```regio_data.yml``` file and activate it by running the following lines:
+
+```
+conda env create -f regio_data.yml
+conda activate regio_data
+```
 
 
 ## data
