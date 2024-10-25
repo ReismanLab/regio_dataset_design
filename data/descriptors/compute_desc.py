@@ -28,7 +28,8 @@ parser.add_argument('--csv',
                     help='CSV file with SMILES to compute descriptors, one columns has to be smiles, SMILES or Smiles')
 
 parser.add_argument('--njobs',
-                    help='Number of jobs to run in parallel, default is -1 (all cores)')
+                    help='Number of jobs to run in parallel, default is -1 (all cores)',
+                    default=-1)
 
 args = parser.parse_args()
 

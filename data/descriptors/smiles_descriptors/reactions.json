@@ -3121,6 +3121,22 @@
    }
   }
  },
+ "CC": {
+  "gasteiger": {
+   "0": {
+    "gas_charge_C": -0.06826,
+    "gas_charge_H_max": 0.02275,
+    "gas_charge_H_mean": 0.022750000000000003,
+    "gas_charge_H_min": 0.02275
+   },
+   "1": {
+    "gas_charge_C": -0.06826,
+    "gas_charge_H_max": 0.02275,
+    "gas_charge_H_mean": 0.022750000000000003,
+    "gas_charge_H_min": 0.02275
+   }
+  }
+ },
  "CC(=O)C(=O)c1ccccc1": {
   "gasteiger": {
    "0": {
@@ -42419,36 +42435,6 @@
     "gas_charge_H_mean": 0.03465,
     "gas_charge_H_min": 0.03465
    },
-   "2": {
-    "gas_charge_C": -0.05868,
-    "gas_charge_H_max": 0.02365,
-    "gas_charge_H_mean": 0.02365,
-    "gas_charge_H_min": 0.02365
-   },
-   "4": {
-    "gas_charge_C": -0.05847,
-    "gas_charge_H_max": 0.06258,
-    "gas_charge_H_mean": 0.06258,
-    "gas_charge_H_min": 0.06258
-   },
-   "5": {
-    "gas_charge_C": -0.05792,
-    "gas_charge_H_max": 0.0626,
-    "gas_charge_H_mean": 0.0626,
-    "gas_charge_H_min": 0.0626
-   },
-   "8": {
-    "gas_charge_C": -0.05526,
-    "gas_charge_H_max": 0.06287,
-    "gas_charge_H_mean": 0.06287,
-    "gas_charge_H_min": 0.06287
-   },
-   "9": {
-    "gas_charge_C": -0.02726,
-    "gas_charge_H_max": 0.03162,
-    "gas_charge_H_mean": 0.03162,
-    "gas_charge_H_min": 0.03162
-   },
    "10": {
     "gas_charge_C": -0.04478,
     "gas_charge_H_max": 0.02733,
@@ -42491,11 +42477,41 @@
     "gas_charge_H_mean": 0.02756,
     "gas_charge_H_min": 0.02756
    },
+   "2": {
+    "gas_charge_C": -0.05868,
+    "gas_charge_H_max": 0.02365,
+    "gas_charge_H_mean": 0.02365,
+    "gas_charge_H_min": 0.02365
+   },
    "20": {
     "gas_charge_C": -0.05524,
     "gas_charge_H_max": 0.02395,
     "gas_charge_H_mean": 0.02395,
     "gas_charge_H_min": 0.02395
+   },
+   "4": {
+    "gas_charge_C": -0.05847,
+    "gas_charge_H_max": 0.06258,
+    "gas_charge_H_mean": 0.06258,
+    "gas_charge_H_min": 0.06258
+   },
+   "5": {
+    "gas_charge_C": -0.05792,
+    "gas_charge_H_max": 0.0626,
+    "gas_charge_H_mean": 0.0626,
+    "gas_charge_H_min": 0.0626
+   },
+   "8": {
+    "gas_charge_C": -0.05526,
+    "gas_charge_H_max": 0.06287,
+    "gas_charge_H_mean": 0.06287,
+    "gas_charge_H_min": 0.06287
+   },
+   "9": {
+    "gas_charge_C": -0.02726,
+    "gas_charge_H_max": 0.03162,
+    "gas_charge_H_mean": 0.03162,
+    "gas_charge_H_min": 0.03162
    }
   }
  },
