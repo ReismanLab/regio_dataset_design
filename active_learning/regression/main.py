@@ -19,7 +19,7 @@ parser.add_argument('--smi',
                     default="COC(=O)CC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC[C@@H]4C[C@H](OC(C)=O)CC[C@]4(C)[C@H]3CC[C@]12C")
 parser.add_argument('--acqf',
                     help='Acquisition function to compute (labels defined in utils/acquisition)',
-                    default='acqf_1')
+                    default='acqf_2-1')
 parser.add_argument('--batch',
                     help='Batch size',
                     default=1)
@@ -55,10 +55,10 @@ parser.add_argument('--selection_strat',
                     default="simple")
 parser.add_argument('--res', 
                     help='Name for results folder',
-                    default='new')
+                    default='test')
 parser.add_argument('--run', 
                     help='Name for the run ',
-                    default='0')
+                    default='test')
 parser.add_argument('--df_folder',
                     help='Name for the folder where the precomputed descriptors are',
                     default='preprocessed_reactions_no_unspec_no_intra')
@@ -103,9 +103,7 @@ if os.path.exists(f"{path}/res_rf_{s}_{acqf}_{run}_{batch}_{start}start_{feature
 
 ## remaining imports
 import acqf as a
-import acquisition as aq
 import pickle
-from tqdm import tqdm
 from sklearn.ensemble import RandomForestRegressor
 
 reg = RandomForestRegressor(n_estimators=n_estimators,
