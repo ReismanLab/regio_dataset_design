@@ -1,17 +1,12 @@
 import pandas as pd
-import ast
 import sys
 import os
 from rdkit import Chem
-from tqdm import tqdm
-import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.base import clone
-from datetime import date
 import argparse
 
 root = os.getcwd()
-print(os.getcwd())
+
 try:
     base_cwd = os.getcwd().split('regio_dataset_design')[0]
     base_cwd = f"{base_cwd}/regio_dataset_design"
@@ -25,13 +20,16 @@ pd.set_option('mode.chained_assignment', None)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning) 
 
-## params
+## parameterss
 parser = argparse.ArgumentParser(description='Performance of models on big molecules')
 parser.add_argument('--run',
                     help='name of the folder to put the results in, if already taken will abort')
 parser.add_argument('--df_folder',
                     help='name of the folder to read the csvs from: \n --preprocessed_borylation_reactions \n --preprocessed_reactions',
                     default='preprocessed_reactions_no_unspec_no_intra')
+parser.add_argument('--model',
+                    help="list of the models to use, can be all or a subset of 'RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR' or 'all'",
+                    default='RF2 KNN SVR LR')
 
 args = parser.parse_args()
 if args.run == None:
@@ -40,15 +38,11 @@ if args.run == None:
 else:
     run = args.run
 
-if args.df_folder == None:
-    print("Please provide a folder to read the data from: \n --preprocessed_borylation_reactions \n --preprocessed_reactions \n --preprocessed_reactions_no_unspec_center")
-    sys.exit()
-else:
-    rxn_folder = args.df_folder
+rxn_folder = args.df_folder
 
-if args.df_folder in ['preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm']:
+if rxn_folder in ['preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm']:
     out_folder = f"borylation/{run}"
-elif args.df_folder in ['preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
+elif rxn_folder in ['preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
     out_folder = f"dioxirane/{run}"
 else:
     print("Unexpected folder name.")
@@ -60,6 +54,10 @@ if os.path.exists(f"{base_cwd}/results/model_validation/regression/large_mol/{ou
 else:
     os.makedirs(f"{base_cwd}/results/model_validation/regression/large_mol/{out_folder}")
 
+models = args.model.split()
+if models == ['all']:
+    models = ['RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR']
+print(f"Will be using the following models: {models}")
 
 ## import models
 from sklearn.svm import SVR
@@ -99,7 +97,7 @@ gpr = GaussianProcessRegressor(kernel=Matern(length_scale=2.0, nu=1.5),
                                 normalize_y=True)
 lr  = LinearRegression()
 
-models =  {'RF-OPT-XTB' : rfoptxtb,
+dict_models =  {'RF-OPT-XTB' : rfoptxtb,
            'RF2'        : rf2,
            'MLP'        : mlp,
            'MLP2'       : mlp2,
@@ -107,6 +105,8 @@ models =  {'RF-OPT-XTB' : rfoptxtb,
            'KNN'        : knn,
            'GPR'        : gpr,
            'LR'         : lr}
+
+models = {m: dict_models[m] for m in models}
 
 ## import data - featurization
 df_xtb     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_xtb.csv", index_col=0)
@@ -120,9 +120,7 @@ df_sel     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_selected.
 df_custom  = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_custom.csv", index_col=0)
 df_en1_ohe = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_en1_ohe.csv", index_col=0)
 
-features = {#'AIMNET-A'  : df_a,
-            #'AIMNET-AIM': df_aim,
-            'BDE'       : df_bde.drop(["DOI"], axis=1),
+features = {'BDE'       : df_bde.drop(["DOI"], axis=1),
             'XTB'       : df_xtb.drop(["DOI"], axis=1),
             'DBSTEP'    : df_dbs.drop(["DOI"], axis=1), 
             'Gasteiger' : df_gas.drop(["DOI"], axis=1),
@@ -147,7 +145,6 @@ for smiles in smiles:
         big_smiles.append(smiles)
     else:
         small_smiles.append(smiles)
-#big_smiles = [Chem.CanonSmiles('[H][C@]1(C2)[C@@]([C@@H](OC(C)=O)[C@H](OC(C)=O)C3=C(C)[C@@H](OC(C)=O)C[C@]2([H])C3(C)C)(C)[C@@H](OC(C)=O)C[C@H](O[Si](CC)(CC)CC)[C@@]14OC4')]
 
 ## produce results    
 

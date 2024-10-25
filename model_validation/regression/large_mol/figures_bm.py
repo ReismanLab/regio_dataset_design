@@ -12,52 +12,68 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 ### Parse arguments
 recompute = True
+
 import argparse
 parser = argparse.ArgumentParser(description='Descriptor computation')
 parser.add_argument('--run',
-                    help='Folder with results files')
+                    help='Folder with results files',
+                    default = 'average')
 parser.add_argument('--model',
-                    help='Model to evaluate the regioselectivity plot')
+                    help='Model to evaluate the regioselectivity plot',
+                    default = 'RF2')
 parser.add_argument('--desc',
-                    help='Descriptor to use for the regioselectivity plot')
+                    help='Descriptor to use for the regioselectivity plot',
+                    default = 'Custom')
 parser.add_argument('--vmin',
                     help='vmin')
 parser.add_argument('--vmax',
                     help='vmax')
 parser.add_argument('--rxn',
-                    help='Folder with preprocessed reactions', default = 'preprocessed_reactions_no_unspec_no_intra')
+                    help='Folder with preprocessed reactions', 
+                    default = 'preprocessed_reactions_no_unspec_no_intra')
 parser.add_argument('--draw',
                     help='Type of images: numbers or heatmap with colors: "colors" or "numbers"', 
                     default = "colors")
 parser.add_argument('--dataset',
-                    help='The dataset the runs were performed on, could be all the data (folders starting by "run_"), only the ones with specified stereo ("run_no_unspec_dia_") or the totally cleaned dataset (no unspecified data, no intra molecular reactions, protonated amines: "clean_run_)"', default = "clean_run")
+                    help='The dataset the runs were performed on, could be all the data (folders starting by "run_"), only the ones with specified stereo ("run_no_unspec_dia_") or the totally cleaned dataset (no unspecified data, no intra molecular reactions, protonated amines: "clean_run_)"', 
+                    default = "clean_run")
 
 args = parser.parse_args()
-if args.run == None:
-    folder = 'average'
-else:
-    folder = args.run
 
-if args.rxn == None:
+folder = args.run
+rxn    = args.rxn
+
+if rxn == None:
     rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
     rxn        = "dioxirane"
     dataset    = "clean_run"
     print(f"Reaction default: {rxn}")
+elif rxn == 'borylation':
+    rxn_folder = "preprocessed_borylation_reactions"
+    dataset    = "run_"
+    print(f"Reaction: {rxn}")
+elif rxn == 'dioxirane':
+    rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
+    dataset    = "clean_run"  
+    print(f"Reaction: {rxn}")
 else:
-    rxn_folder = args.rxn
+    print(f"Unexpected reaction: {rxn}.\n please give one of these: \n'borylation', 'dioxirane'")
+    sys.exit()
 
 if rxn_folder in ['preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm']:
     rxn          = 'borylation'
     norm_big_mol = 22
     dataset      = "run_"
     print(f"Reaction used: {rxn}")
+
 elif rxn_folder in ['preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
     rxn          = "dioxirane"
     norm_big_mol = 50
     dataset      = "clean_run"
     print(f"Reaction used: {rxn}")
+
 else:
-    print("Unexpected folder name.\n please give one of these: \n'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra'\n'preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm'")
+    print(f"Unexpected folder name: {rxn_folder}.\n please give one of these: \n'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra'\n'preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm'")
     sys.exit()
     
 draw = args.draw  
@@ -378,4 +394,5 @@ for j in range(i, len(list(df.index))):
 
 print(f"Saving {figname}")
 fig.savefig(figname, bbox_inches='tight', dpi=600)
+os.system(f"rm smiles_*.png")
 print(f"Saved {figname}")

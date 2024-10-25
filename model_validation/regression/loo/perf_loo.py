@@ -1,13 +1,7 @@
 import pandas as pd
-import ast
 import sys
 import os
 from rdkit import Chem
-from tqdm import tqdm
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.base import clone
-from datetime import date
 
 root = os.getcwd()
 
@@ -28,7 +22,12 @@ parser.add_argument('--df_folder',
 parser.add_argument('--rxn',
                     help='name of the rxn folder to read the csvs from',
                     default='dioxirane')
-
+parser.add_argument('--model',
+                    help="list of the models to use, can be all or a subset of 'RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR' or 'all'",
+                    default='RF2 KNN SVR LR')
+parser.add_argument('--desc',
+                    help="list of the models to use, can be all or a subset of 'BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur' or 'all'",
+                    default='XTB Selected Custom')
 
 args = parser.parse_args()
 if args.df_folder is None:
@@ -64,6 +63,15 @@ else:
        os.mkdir(folder)
    os.chdir(root)
 
+models = args.model.split()
+if models == ['all']:
+    models = ['RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR']
+print(f"\n        Will be using the following models: {models}\n")
+
+desc = args.desc.split()
+if desc == ['all']:
+    desc = ['BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur']
+print(f"        Will be using the following descriptors: {desc}\n")
 
 sys.path.append(f"{base_cwd}/utils/")
 import modelling as md
@@ -106,15 +114,17 @@ gpr = GaussianProcessRegressor(kernel=Matern(length_scale=2.0, nu=1.5),
                                 normalize_y=True)
 lr  = LinearRegression()
 
-models =  {'LR'         : lr,
+dict_models =  {'LR'         : lr,
            'RF-OPT-XTB' : rfoptxtb,
            'RF2'        : rf2,
            'SVR'        : svr,
            'KNN'        : knn,
-#           'MLP'        : mlp,
-#           'MLP2'       : mlp2,
-#           'GPR'        : gpr,
+           'MLP'        : mlp,
+           'MLP2'       : mlp2,
+           'GPR'        : gpr,
            }
+
+models = {m: dict_models[m] for m in models}
 
 ## import data - featurization
 df_xtb     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_xtb.csv", index_col=0)
@@ -128,8 +138,7 @@ df_sel     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_selec
 df_custom  = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_custom.csv", index_col=0)
 df_en1_ohe = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_en1_ohe.csv", index_col=0)
 
-features = {#'AIMNET-A'  : df_a,
-            #'AIMNET-AIM': df_aim,
+features = {
             'BDE'       : df_bde.drop(columns=["DOI"]),
             'XTB'       : df_xtb.drop(columns=["DOI"]),
             'DBSTEP'    : df_dbs.drop(columns=["DOI"]), 
@@ -141,6 +150,8 @@ features = {#'AIMNET-A'  : df_a,
             'Selected'  : df_sel.drop(columns=["DOI"]),
             'Custom'    : df_custom.drop(columns=["DOI"])
             }
+
+features = {d: features[d] for d in desc}
 
 
 ## performance evaluation

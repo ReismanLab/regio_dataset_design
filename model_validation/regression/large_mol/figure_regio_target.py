@@ -1,5 +1,4 @@
 ## plot regioselectivity prediction
-import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.image as img
 import os

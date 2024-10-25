@@ -9,13 +9,13 @@ dependencies:
     - rdkit==2022.09.4
     - numpy==1.24.1
     - matplotlib
-    - pandas
+    - pandas==1.5.3
     - tqdm
-    - rxnmapper
+    - rxnmapper==0.3.0
     - openpyxl
     - morfeus-ml
     - dbstep
-    - scikit-learn==1.2.0
-    - torch==1.13.0
+    - scikit-learn==1.5.1
     - seaborn
     - opencv-python
+    - torch==2.0.0

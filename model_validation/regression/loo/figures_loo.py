@@ -20,6 +20,7 @@ parser.add_argument('--rxn',
                     default = "dioxirane")
 
 args = parser.parse_args()
+
 if args.run == None:
     folder = 'clean_run_01'
 else:
@@ -76,6 +77,7 @@ models =  {'LR'         : 0,
            'GPR'        : 0,}
 
 results = pd.DataFrame(columns=['Model', 'Feature', 'TOP-1', 'TOP-2', 'TOP-3', 'TOP-5', 'TOP-AVG'])
+
 if folder != 'average':
     for m, model in models.items():
         for f, feature in features.items():
@@ -87,10 +89,10 @@ if folder != 'average':
                     top_n.append(md.get_top_n_accuracy(df_p, i))
                 results = results.append({'Model'   : m,
                                         'Feature' : f,
-                                        'TOP-1'   : top_n[0],
-                                        'TOP-2'   : top_n[1],
-                                        'TOP-3'   : top_n[2],
-                                        'TOP-5'   : top_n[3],
+                                        'TOP-1'   : 100*top_n[0],
+                                        'TOP-2'   : 100*top_n[1],
+                                        'TOP-3'   : 100*top_n[2],
+                                        'TOP-5'   : 100*top_n[3],
                                         'TOP-AVG' : mt.top_avg(df_p)
                                         }, ignore_index=True)
             except:
@@ -195,21 +197,25 @@ except:
 round_ = 2
 
 print("Plotting results")
-print(f"\n\n{results}\n\n") 
-print(f"\n\n{df_res_std}\n\n")
+#print(f"\n\n{results}\n\n") 
+#print(f"\n\n{df_res_std}\n\n")
 
 for col in ['TOP-1', 'TOP-2', 'TOP-3', 'TOP-5', 'TOP-AVG']:
     table = results.pivot("Feature", "Model", col) 
-    table_std = df_res_std.pivot("Feature", "Model" , col)
     table = table.reindex(['BDE', 'Rdkit-Vbur', 'DBSTEP', 'Gasteiger', 'ENV-1', 'ENV-2', 'XTB', 'Custom', 'Selected'])
-    table_std = table_std.reindex(['BDE', 'Rdkit-Vbur', 'DBSTEP', 'Gasteiger', 'ENV-1', 'ENV-2', 'XTB', 'Custom', 'Selected'])
     table = table.reindex(['RF2', 'RF-OPT-XTB', 'KNN', 'LR',  'SVR', 'GPR'], axis =1) # 'MLP2', 'MLP',
-    table_std = table_std.reindex(['RF2', 'RF-OPT-XTB', 'KNN', 'LR',  'SVR', 'GPR'], axis =1) # 'MLP2', 'MLP',
+    if folder == 'average':
+        table_std = df_res_std.pivot("Feature", "Model" , col)
+        table_std = table_std.reindex(['BDE', 'Rdkit-Vbur', 'DBSTEP', 'Gasteiger', 'ENV-1', 'ENV-2', 'XTB', 'Custom', 'Selected'])
+        table_std = table_std.reindex(['RF2', 'RF-OPT-XTB', 'KNN', 'LR',  'SVR', 'GPR'], axis =1) # 'MLP2', 'MLP',
 
     annots = pd.DataFrame(columns=table.columns, index=table.index)
     for i in range(len(annots.index)):
         for j in range(len(annots.columns)):
-            annots.iloc[i,j] = f"{round(table.iloc[i,j], round_)} ± {round(table_std.iloc[i,j], round_)}" 
+            if folder == 'average':
+                annots.iloc[i,j] = f"{round(table.iloc[i,j], round_)} ± {round(table_std.iloc[i,j], round_)}" 
+            else:
+                annots.iloc[i,j] = f"{round(table.iloc[i,j], round_)}" 
 
     fig, ax = plt.subplots(figsize=(20, 10))
     if col != 'TOP-AVG':
