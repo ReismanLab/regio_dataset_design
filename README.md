@@ -22,6 +22,8 @@ conda env create -f regio_data.yml
 conda activate regio_data
 ```
 
+**Note:** The installation might take several minutes
+
 ## data
 
 Contains the raw reaction data and scripts to featurize the reactants for the modelling and active learning sections
