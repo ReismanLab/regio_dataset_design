@@ -1,0 +1,22 @@
+name: regio_data
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - xtb-python
+  - pip:
+    - rdkit==2022.09.4
+    - numpy==1.24.1
+    - matplotlib
+    - pandas==1.5.3
+    - tqdm
+    - rxnmapper==0.3.0
+    - openpyxl
+    - morfeus-ml
+    - dbstep
+    - scikit-learn==1.5.1
+    - seaborn
+    - opencv-python
+    - torch==2.0.0
+    - ipykernel

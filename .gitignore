@@ -1,0 +1,15 @@
+
+.DS_Store
+data/.DS_Store
+data/descriptors/.DS_Store
+data/descriptors/smiles_descriptors/.DS_Store
+model_validation/.DS_Store
+model_validation/regression/.DS_Store
+model_validation/regression/large_mol/.DS_Store
+model_validation/regression/loo/.DS_Store
+utils/__pycache__/descriptors.cpython-311.pyc
+utils/__pycache__/metrics.cpython-311.pyc
+utils/__pycache__/modelling.cpython-311.pyc
+utils/__pycache__/preprocessing.cpython-311.pyc
+utils/__pycache__/visualization.cpython-311.pyc
+
