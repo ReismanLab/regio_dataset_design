@@ -1,4 +1,6 @@
-# distribution shift analysis
+# Distribution Shift Analyses
+
+This folder gather some attempts to characterize a distribution shift between the complex molecules distribution and the small molecule distribution.
 
 ## 1. Tanimoto similarities between the small molecules dataset and the complex molecules dataset
 
@@ -16,14 +18,18 @@ The Fréchet ChemNet Distance can be computed using the [fcd package](https://gi
 
 ### installation of the FCD environment:
 
-'conda create -n fcd -y
+```
+conda create -n fcd -y
 conda activate fcd
 git clone https://github.com/insilicomedicine/fcd_torch.git
 cd fcd_torch   
-python3 setup.py install'  
+python3 setup.py install
+```
 
 ### running the results:
 
-'mv ../fcd_small_vs_complex.py .
-python3 fcd_small_vs_complex.py'
+```
+mv ../fcd_small_vs_complex.py .
+python3 fcd_small_vs_complex.py
+```
 
