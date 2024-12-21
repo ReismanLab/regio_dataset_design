@@ -33,3 +33,6 @@ mv ../fcd_small_vs_complex.py .
 python3 fcd_small_vs_complex.py
 ```
 
+## 4. Maximum Mean Discrepancy (MMD) analysis
+The results reported in the SI can be obtained running the notebook: MMD anslysis.ipynb.
+
