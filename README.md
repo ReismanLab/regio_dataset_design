@@ -3,13 +3,14 @@
 ## Overview
 This code supports the results reported in the Chemrxiv working paper: [Tailoring Datasets for Regioselectivity Predictions on Complex Substrates](https://chemrxiv.org/engage/chemrxiv/article-details/670af7ffcec5d6c142f850d3)
 
-The repository is divided in 6 folders:
- - data:             experimental data and descriptors
- - model_validation: scripts to run the modeling of the C(sp<sup>3</sup>)–H oxidations and the C(sp<sup>2</sup>)–H borylations
- - active_learning:  scripts to run the acquisition functions and evaluate the learning curves
- - results:          contains the raw files obtained when running the active_learning or model_validation scripts
- - utils:            main functions used for preprocessing/descriptor_generation/modeling/active_learning...
- - figures:          notebooks to reproduce main text and SI figures.
+The repository is divided in 7 folders:
+ - data:                          experimental data and descriptors
+ - model_validation:              scripts to run the modeling of the C(sp<sup>3</sup>)–H oxidations and the C(sp<sup>2</sup>)–H borylations
+ - active_learning:               scripts to run the acquisition functions and evaluate the learning curves
+ - results:                       contains the raw files obtained when running the active_learning or model_validation scripts
+ - utils:                         main functions used for preprocessing/descriptor_generation/modeling/active_learning...
+ - figures:                       notebooks to reproduce main text and SI figures
+ - distribution_shift_analysis:   attempts to characterize distribution shift
 
 Each folder contains a README file with specific details.
 
