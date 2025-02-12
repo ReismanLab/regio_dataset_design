@@ -1,14 +1,14 @@
 # Distribution Shift Analyses
 
-This folder gather some attempts to characterize a distribution shift between the complex molecules distribution and the small molecule distribution.
+This folder gathers some attempts to characterize a distribution shift between the distribution of complex molecules and the distribution of small molecules.
 
 ## 1. Tanimoto similarities between the small molecules dataset and the complex molecules dataset
 
-The results reported in the SI can be obtained running the notebook: *tanimoto_distances.ipynb*.
+The results reported in the SI can be obtained by running the notebook: *tanimoto_distances.ipynb*.
 
 ## 2. BRICS and pBRICS analysis
 
-The decomposition of the smiles in the dioxirane dataset are in the folder *decomposition_data*. The BRICS decomposition was obtained using RDKit Chem.BRICS.BRICSDecompose function and the pBRICS decomposition was obtained thanks to the code provided by the authors of the [original publication](https://pubs.acs.org/doi/10.1021/acs.jcim.3c00689). 
+The decomposition of the smiles in the dioxirane dataset is in the folder *decomposition_data*. The BRICS decomposition was obtained using RDKit Chem.BRICS.BRICSDecompose function and the pBRICS decomposition were obtained thanks to the code provided by the authors of the [original publication](https://pubs.acs.org/doi/10.1021/acs.jcim.3c00689). 
 
 The results reported in the SI can be obtained running the notebook: *pbrics_comparison.ipynb*.
 
@@ -16,7 +16,7 @@ The results reported in the SI can be obtained running the notebook: *pbrics_com
 
 The Fréchet ChemNet Distance can be computed using the [fcd package](https://github.com/insilicomedicine/fcd_torch) and the python script provided in this folder.
 
-### installation of the FCD environment:
+### Installation of the FCD environment:
 
 ```
 conda create -n fcd -y
@@ -34,5 +34,5 @@ python3 fcd_small_vs_complex.py
 ```
 
 ## 4. Maximum Mean Discrepancy (MMD) analysis
-The results reported in the SI can be obtained running the notebook: MMD_analysis.ipynb.
+The results reported in the SI can be obtained by running the notebook: MMD_analysis.ipynb.
 
