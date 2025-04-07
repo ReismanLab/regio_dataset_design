@@ -1,7 +1,13 @@
 # regio_dataset_design
 
 ## Overview
-This code supports the results reported in the Chemrxiv working paper: [Tailoring Datasets for Regioselectivity Predictions on Complex Substrates](https://chemrxiv.org/engage/chemrxiv/article-details/670af7ffcec5d6c142f850d3)
+This code supports the results published in [*J. Am. Chem. Soc.* **2025**, 147, 9, 7476–7484 **Designing Target-specific Data Sets for Regioselectivity Predictions on Complex Substrates**](https://pubs.acs.org/doi/10.1021/jacs.4c15902). A previous *Chemrxiv* version is available [here](https://chemrxiv.org/engage/chemrxiv/article-details/670af7ffcec5d6c142f850d3).
+
+## Citation
+
+If you use this code or part of it please cite: *J. Am. Chem. Soc.* **2025**, 147, 9, 7476–7484.
+
+## Organization
 
 The repository is divided in 7 folders:
  - data:                          experimental data and descriptors
