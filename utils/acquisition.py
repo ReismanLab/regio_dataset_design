@@ -31,7 +31,8 @@ from rdkit import DataStructs
 ### PERFORMANCE EVALUATION ALONG DATASET GATHERING ###
 def eval_perf(target_SMILES, training_SMILES, df, reg, acqf, 
               acqf_args_dict = {}, batch_size=1, 
-              distance_balance=0.01, n_repet=20, alpha=1):
+              distance_balance=0.01, n_repet=20, alpha=1, feat="Selectivity",
+              df_folder="preprocessed_dioxirane_reactions"):
     """
     Inputs:
         target_SMILES  : str, SMILES of the target molecule
@@ -74,10 +75,10 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
     df_training              = df[df['Reactant_SMILES'].isin(training_SMILES)]
     
     # training the model round0 
-    start_model              = md.train_model(df_training['Reactant_SMILES'].unique(), df_training.drop(columns=['DOI']), reg)
+    start_model              = md.train_model(df_training['Reactant_SMILES'].unique(), df_training.drop(columns=['DOI']), reg, feat=feat)
 
     # use the model to predict the site reactivities of the target molecule
-    start_valid_, start_pred = md.predict_site(start_model, target_SMILES, df.drop(columns=['DOI']), classif=False)
+    start_valid_, start_pred = md.predict_site(start_model, target_SMILES, df.drop(columns=['DOI']), classif=False, feat=feat)
     
     carbo_reac_predictions.append(start_pred)
     start_pred               = list(start_pred.items())
@@ -86,39 +87,40 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
     if acqf == 'acqf_1' or acqf == 'acqf_10':
         acqf_args_dict = {'n_repet': n_repet, 'distance_balance': distance_balance, 'alpha': alpha}
     elif acqf == 'acqf_3':
-        out, max_scores              = make_acqf_3_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_3_order(target_SMILES, training_SMILES, df, df_folder)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_4':
-        out, max_scores              = make_acqf_4_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_4_order(target_SMILES, training_SMILES, df, df_folder)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_4-1':
-        out, max_scores              = make_acqf_4_1_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_4_1_order(target_SMILES, training_SMILES, df, df_folder)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_5':
-        out, max_scores              = make_acqf_5_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_5_order(target_SMILES, training_SMILES, df, feat=feat)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_6':
-        out, max_scores              = make_acqf_6_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_6_order(target_SMILES, training_SMILES, df, feat=feat)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_7':
-        out, max_scores              = make_acqf_7_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_7_order(target_SMILES, training_SMILES, df, feat=feat)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_8':
-        out, max_scores              = make_acqf_8_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_8_order(target_SMILES, training_SMILES, df, feat=feat)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     elif acqf == 'acqf_9':
-        out, max_scores              = make_acqf_9_order(target_SMILES, training_SMILES, df)
+        out, max_scores              = make_acqf_9_order(target_SMILES, training_SMILES, df, feat=feat)
         acqf_args_dict["out"]        = out
         acqf_args_dict["max_scores"] = max_scores
     
     acqf_args_dict['batch_size'] = batch_size
+    acqf_args_dict['feat'] = feat
 
     n_remaining = np.inf # some non-zero initialization
     
@@ -132,8 +134,8 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
         smiles_added.extend(new_SMILES)
 
         reg__          = clone(reg)
-        new_model      = md.train_model(training_SMILES, df.drop(columns=['DOI']), reg__)
-        valid_, y_pred = md.predict_site(new_model, target_SMILES, df.drop(columns=['DOI']), classif=False)
+        new_model      = md.train_model(training_SMILES, df.drop(columns=['DOI']), reg__, feat=feat)
+        valid_, y_pred = md.predict_site(new_model, target_SMILES, df.drop(columns=['DOI']), classif=False, feat=feat)
         y_pred_list    = list(y_pred[x] for x in y_pred.keys())
         top5           = get_top_5(df, y_pred_list, target_SMILES)
         top_5_scores.append(top5)
@@ -144,7 +146,7 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
     
     return top_5_scores, smiles_added, carbo_reac_predictions, max_scores
 
-def get_top_5(df, pred, target_SMILES):
+def get_top_5(df, pred, target_SMILES, feat="Selectivity"):
     """
     Inputs:
         df           : dataframe, with the training data for all molecules 
@@ -154,8 +156,8 @@ def get_top_5(df, pred, target_SMILES):
         top_5        : list, of the top 5 predicted values
     """
     df_pred = df[df['Reactant_SMILES'] == target_SMILES]
-    df_pred['Predicted_Selectivity']   = pred
-    df_pred.sort_values(by='Predicted_Selectivity', ascending=False, inplace=True)
+    df_pred[f'Predicted_{feat}']   = pred
+    df_pred.sort_values(by=f'Predicted_{feat}', ascending=False, inplace=True)
     reactive_atom = df_pred['Reactive Atom'].unique()[0]
     #print(f"reactive_atom: {reactive_atom}", flush=True)
 
@@ -168,14 +170,12 @@ def get_top_5(df, pred, target_SMILES):
             top_5.append(1)
         else:
             top_5.append(0)
-
     return top_5
-
 
 
 ### RANDOM BASELINE ###
 def add_random_molecule(target_SMILES, training_SMILES, df, 
-                        reg=None, n_repet=None, distance_balance=None, batch_size=1):
+                        reg=None, n_repet=None, distance_balance=None, batch_size=1, feat="Selectivity"):
     """"
     Inputs:
         training_SMILES: list, of SMILES of the training molecules
@@ -201,7 +201,8 @@ def add_random_molecule(target_SMILES, training_SMILES, df,
 
 
 ### FUNCTION 1 ###
-def acqf_1(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance=0.01, batch_size=1, alpha=1):
+def acqf_1(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance=0.01, batch_size=1, alpha=1,
+           feat="Selectivity"):
     """
     1. get the product of uncertainty avg reactivity per carbon of the target molecule based on the training of n_repet models
     2. get the matrix distance between the target C and the remaining molecules C
@@ -222,8 +223,8 @@ def acqf_1(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance
     """
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
-    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet)
-    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_)
+    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet, feat=feat, alpha=alpha)
+    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_, feat=feat)
     score_by_smiles_weighted = select_smiles_1(df_dists, score, distance_balance = distance_balance)
     training_SMILES  = list(training_SMILES) 
     new_SMILES_lst   = []
@@ -234,7 +235,7 @@ def acqf_1(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance
     
     return training_SMILES, len(score_by_smiles_weighted.index) - batch_size, new_SMILES_lst, list(score_by_smiles_weighted.values)  
 
-def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, 
+def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, feat, 
                             n_repet=20,
                             alpha=1):
     """
@@ -255,8 +256,9 @@ def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg,
         reg_ = clone(reg)
         reg_.random_state = i
         reg_.neighbors    = i + 1
-        rf_trained  = md.train_model(df_training['Reactant_SMILES'].unique(), df_training.drop(columns=['DOI']), reg_)
-        bool_, pred = md.predict_site(rf_trained, target_SMILES, df.drop(columns=['DOI']))
+        rf_trained  = md.train_model(df_training['Reactant_SMILES'].unique(),
+                                      df_training.drop(columns=['DOI']), reg_, feat=feat)
+        bool_, pred = md.predict_site(rf_trained, target_SMILES, df.drop(columns=['DOI']), feat=feat)
         preds.append(list(pred.values()))
 
     preds_mean = list(np.mean(preds, axis=0))
@@ -265,7 +267,7 @@ def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg,
     score = [x**(2-alpha)*(y**(alpha)) for x,y in zip(preds_mean, preds_std)]
     return score
 
-def target_C_distance_to_remaining(target_SMILES, df_custom, df_remaining):
+def target_C_distance_to_remaining(target_SMILES, df_custom, df_remaining, feat="Selectivity"):
     """
     target_SMILES: SMILES of the target molecule
     df_custom    : dataframe with the training data including the target SMILES descriptors
@@ -275,12 +277,12 @@ def target_C_distance_to_remaining(target_SMILES, df_custom, df_remaining):
     target_C = df_custom[df_custom['Reactant_SMILES'] == target_SMILES]
     if len(target_C.DOI.unique()) != 1:
         print("WARNING: target molecule is not in only one reaction.... need to change target_C_distance_to_remaining function!")
-    target_C.drop(columns=['DOI', 'Reactant_SMILES', 'Selectivity', 'Reactive Atom'], inplace=True)
+    target_C.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom'], inplace=True)
     target_C.set_index('Atom_nº', inplace=True)
     X_t     = target_C.values
 
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining.drop(columns=['DOI', 'Selectivity', 'Reactive Atom'])
+    remaining_molecules = df_remaining.drop(columns=['DOI', feat, 'Reactive Atom'])
     remaining_molecules.set_index(['Reactant_SMILES', 'Atom_nº'] , inplace=True)
     X_r     = remaining_molecules.values
 
@@ -330,7 +332,8 @@ def select_smiles_1(df_dists, score, distance_balance = 0.01):
 
 ### FUNCTION 2 ###
 def acqf_2(target_SMILES, training_SMILES, df, 
-           reg=None, n_repet=None, distance_balance=None, batch_size=1):
+           reg=None, n_repet=None, distance_balance=None, batch_size=1,
+           feat="Selectivity"):
     """
     1. rank molecules in training_SMILES based on MCS similarity to target_SMILES
     2. return most similar molecule
@@ -370,7 +373,7 @@ def acqf_2(target_SMILES, training_SMILES, df,
     return training_SMILES, len(out.index) - batch_size, new_SMILES_lst, max_score_SMILES
 
 def acqf_2_1(target_SMILES, training_SMILES, df, 
-           reg=None, n_repet=None, distance_balance=None, batch_size=1):
+           reg=None, n_repet=None, distance_balance=None, batch_size=1, feat="Selectivity"):
     """
     1. rank molecules in training_SMILES based on MCS similarity to target_SMILES
     2. return most similar molecule
@@ -413,7 +416,7 @@ def acqf_2_1(target_SMILES, training_SMILES, df,
 
 
 ### FUNCTION 3 ###
-def compute_fingerprint_matrix(df):
+def compute_fingerprint_matrix(df, df_folder):
     smis = df.Reactant_SMILES.unique()
     fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=2048)
     fps = []
@@ -432,10 +435,10 @@ def compute_fingerprint_matrix(df):
             matrix[j, i] = sim
     out = pd.DataFrame(matrix)
     out["SMILES"] = smis
-    out.to_csv(f"{base_cwd}/data/descriptors/preprocessed_reactions/fp_sim.csv")
+    out.to_csv(f"{base_cwd}/data/descriptors/{df_folder}/fp_sim.csv")
 
 
-def make_fp_clusters(target_SMILES, training_SMILES, df):
+def make_fp_clusters(target_SMILES, training_SMILES, df, df_folder):
     """
     1. Cluster all training molecules based on fingerprint similarity (using affinity propagation)
 
@@ -448,11 +451,11 @@ def make_fp_clusters(target_SMILES, training_SMILES, df):
         dictionary, with key as cluster index and value as the list of SMILES belonging to the cluster
     """
     try:
-        matrix = pd.read_csv(f"{base_cwd}/data/descriptors/preprocessed_reactions/fp_sim.csv")
+        matrix = pd.read_csv(f"{base_cwd}/data/descriptors/{df_folder}/fp_sim.csv")
         assert len(matrix) == len(df.Reactant_SMILES.unique())
     except:
-        compute_fingerprint_matrix(df)
-        matrix = pd.read_csv(f"{base_cwd}/data/descriptors/preprocessed_reactions/fp_sim.csv")
+        compute_fingerprint_matrix(df, df_folder)
+        matrix = pd.read_csv(f"{base_cwd}/data/descriptors/{df_folder}/fp_sim.csv")
 
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
@@ -480,7 +483,7 @@ def make_fp_clusters(target_SMILES, training_SMILES, df):
         clusters[l].append(smi)
     return clusters
 
-def make_acqf_3_order(target_SMILES, training_SMILES, df):
+def make_acqf_3_order(target_SMILES, training_SMILES, df, df_folder):
     """
     1. Cluster all molecules based on MCS similarity (using affinity propagation)
     2. Alternate returning a random molecule from each cluster
@@ -496,7 +499,7 @@ def make_acqf_3_order(target_SMILES, training_SMILES, df):
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
 
-    clusters    = make_fp_clusters(target_SMILES, training_SMILES, df)
+    clusters    = make_fp_clusters(target_SMILES, training_SMILES, df, df_folder)
     out         = []
     
     i           = 0
@@ -516,7 +519,7 @@ def make_acqf_3_order(target_SMILES, training_SMILES, df):
 
 
 ### FUNCTION 4 ###
-def make_acqf_4_order(target_SMILES, training_SMILES, df):
+def make_acqf_4_order(target_SMILES, training_SMILES, df, df_folder):
     """
     1. Cluster all molecules based on MCS similarity (using affinity propagation)
     2. Sort clusters by MCS similarity to target_SMILES
@@ -530,7 +533,7 @@ def make_acqf_4_order(target_SMILES, training_SMILES, df):
     Outputs:
         list of SMILES in order to be output
     """
-    clusters = make_fp_clusters(target_SMILES, training_SMILES, df)
+    clusters = make_fp_clusters(target_SMILES, training_SMILES, df, df_folder)
 
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
@@ -575,7 +578,7 @@ def make_acqf_4_order(target_SMILES, training_SMILES, df):
     return out, None
 
 ### FUNCTION 4.1 ###
-def make_acqf_4_1_order(target_SMILES, training_SMILES, df):
+def make_acqf_4_1_order(target_SMILES, training_SMILES, df, df_folder):
     """
     1. Cluster all molecules based on MCS similarity (using affinity propagation)
     2. Sort clusters by MCS similarity to target_SMILES
@@ -589,7 +592,7 @@ def make_acqf_4_1_order(target_SMILES, training_SMILES, df):
     Outputs:
         list of SMILES in order to be output
     """
-    clusters = make_fp_clusters(target_SMILES, training_SMILES, df)
+    clusters = make_fp_clusters(target_SMILES, training_SMILES, df, df_folder)
 
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
@@ -634,7 +637,7 @@ def make_acqf_4_1_order(target_SMILES, training_SMILES, df):
     return out, None
 
 ### FUNCTION 5 ###
-def get_carbon_scores(target_SMILES, df_custom, df_remaining):
+def get_carbon_scores(target_SMILES, df_custom, df_remaining, feat="Selectivity"):
     """
     1. Compute carbon similarity matrix (using negative square of euclidean distance).
     2. Determine carbon score. Carbon score is the maximum similarity score with any target carbon.
@@ -650,11 +653,11 @@ def get_carbon_scores(target_SMILES, df_custom, df_remaining):
     target_C = df_custom[df_custom['Reactant_SMILES'] == target_SMILES]
     if len(target_C.DOI.unique()) != 1:
         print("WARNING: target molecule is not in only one reaction.... need to change target_C_distance_to_remaining function!")
-    target_C.drop(columns=['DOI', 'Reactant_SMILES', 'Selectivity', 'Reactive Atom', 'Atom_nº'], inplace=True)
+    target_C.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom', 'Atom_nº'], inplace=True)
     X_t     = target_C.values
 
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining.drop(columns=['DOI', 'Selectivity', 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
+    remaining_molecules = df_remaining.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
     X_r     = remaining_molecules.values
 
     # get distance between remaining molecules C and target C carbons:
@@ -667,7 +670,7 @@ def get_carbon_scores(target_SMILES, df_custom, df_remaining):
     return target_dist_maxes
 
 
-def make_acqf_5_order(target_SMILES, training_SMILES, df):
+def make_acqf_5_order(target_SMILES, training_SMILES, df, feat):
     """
     1. Compute carbon similarity matrix (using negative square of euclidean distance).
     2. Determine carbon score. Carbon score is the maximum similarity score with any target carbon.
@@ -685,7 +688,7 @@ def make_acqf_5_order(target_SMILES, training_SMILES, df):
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
 
-    target_dist_maxes = get_carbon_scores(target_SMILES, df, df_remaining_)
+    target_dist_maxes = get_carbon_scores(target_SMILES, df, df_remaining_, feat=feat)
 
     avg_carbon = []
     for smi in df_remaining_['Reactant_SMILES'].unique():
@@ -698,7 +701,7 @@ def make_acqf_5_order(target_SMILES, training_SMILES, df):
     return list(csim.smi), list(csim.avg)
 
 ### FUNCTION 6 ###
-def make_acqf_6_order(target_SMILES, training_SMILES, df):
+def make_acqf_6_order(target_SMILES, training_SMILES, df, feat):
     """
     1. Compute carbon similarity matrix (using negative square of euclidean distance).
     2. Determine carbon score. Carbon score is the maximum similarity score with any target carbon.
@@ -716,7 +719,7 @@ def make_acqf_6_order(target_SMILES, training_SMILES, df):
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
 
-    target_dist_maxes = get_carbon_scores(target_SMILES, df, df_remaining_)
+    target_dist_maxes = get_carbon_scores(target_SMILES, df, df_remaining_, feat=feat)
 
     max_carbon = []
     for smi in df_remaining_['Reactant_SMILES'].unique():
@@ -728,7 +731,7 @@ def make_acqf_6_order(target_SMILES, training_SMILES, df):
     return list(csim.smi), list(csim["max"])
 
 ### FUNCTION 7 ###
-def make_acqf_7_order(target_SMILES, training_SMILES, df):
+def make_acqf_7_order(target_SMILES, training_SMILES, df, feat):
     """
     1. Combine acqf-5 and acqf-6, alternating adding from each list.
 
@@ -740,8 +743,8 @@ def make_acqf_7_order(target_SMILES, training_SMILES, df):
     Outputs:
         list of SMILES in order to be output
     """
-    csim_avg, val = make_acqf_5_order(target_SMILES, training_SMILES, df)
-    csim_max, val = make_acqf_6_order(target_SMILES, training_SMILES, df)
+    csim_avg, val = make_acqf_5_order(target_SMILES, training_SMILES, df, feat=feat)
+    csim_max, val = make_acqf_6_order(target_SMILES, training_SMILES, df, feat=feat)
     
     avg_idx = 0
     max_idx = 0
@@ -768,7 +771,7 @@ def make_acqf_7_order(target_SMILES, training_SMILES, df):
     return tset, None
 
 ### FUNCTION 8 ###
-def get_carbon_clusters(target_SMILES, training_SMILES, df):
+def get_carbon_clusters(target_SMILES, training_SMILES, df, feat="Selectivity"):
     """
     1. Cluster carbons using affinity propagation.
     2. For each SMILES in a cluster, get the number of carbons that belongs to that cluster.
@@ -786,7 +789,7 @@ def get_carbon_clusters(target_SMILES, training_SMILES, df):
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
     df_remaining_            = df_remaining_.reset_index(drop=True)
-    rem_C = df_remaining_.drop(columns=['DOI', 'Reactant_SMILES', 'Selectivity', 'Reactive Atom', 'Atom_nº'], inplace=False)
+    rem_C = df_remaining_.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom', 'Atom_nº'], inplace=False)
 
     rni = rng.integers(0, 1000, 1)[0]
     clustering = KMeans(n_clusters=10, random_state=rni).fit(rem_C)
@@ -818,7 +821,7 @@ def get_carbon_clusters(target_SMILES, training_SMILES, df):
         clusters[k] = list(df.SMILES)
     return clusters
 
-def make_acqf_8_order(target_SMILES, training_SMILES, df):
+def make_acqf_8_order(target_SMILES, training_SMILES, df, feat):
     """
     1. Compute carbon similarity clusters.
     2. Alternate between clusters, selecting the most representative molecule each time.
@@ -831,7 +834,7 @@ def make_acqf_8_order(target_SMILES, training_SMILES, df):
     Outputs:
         list of SMILES in order to be output
     """
-    clusters = copy.deepcopy(get_carbon_clusters(target_SMILES, training_SMILES, df))
+    clusters = copy.deepcopy(get_carbon_clusters(target_SMILES, training_SMILES, df, feat=feat))
     out = []
     i = 0
 
@@ -855,7 +858,7 @@ def make_acqf_8_order(target_SMILES, training_SMILES, df):
     return out, None
 
 ### FUNCTION 9 ###
-def make_target_carbon_clusters(target_SMILES, training_SMILES, df):
+def make_target_carbon_clusters(target_SMILES, training_SMILES, df, feat="Selectivity"):
     """
     1. Compute carbon similarity matrix.
     2. For each target carbon, rank all other carbons by similarity.
@@ -870,13 +873,13 @@ def make_target_carbon_clusters(target_SMILES, training_SMILES, df):
               sorted by which SMILES contains the carbon most similar to the target carbon
     """
     target_carbons = df.loc[df['Reactant_SMILES'] == target_SMILES].reset_index(drop=True)
-    target_carbons.drop(columns=['DOI', 'Selectivity', 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'], inplace=True)
+    target_carbons.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'], inplace=True)
 
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
     
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining_.drop(columns=['DOI', 'Selectivity', 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
+    remaining_molecules = df_remaining_.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
     X_r     = remaining_molecules.values
 
     carbon_dict = {}
@@ -897,7 +900,7 @@ def make_target_carbon_clusters(target_SMILES, training_SMILES, df):
     
     return carbon_dict
 
-def make_acqf_9_order(target_SMILES, training_SMILES, df):
+def make_acqf_9_order(target_SMILES, training_SMILES, df, feat):
     """
     1. Compute carbon similarity clusters.
     2. Alternate between clusters, selecting the most representative molecule each time.
@@ -910,7 +913,7 @@ def make_acqf_9_order(target_SMILES, training_SMILES, df):
     Outputs:
         list of SMILES in order to be output
     """
-    carbon_dict = copy.deepcopy(make_target_carbon_clusters(target_SMILES, training_SMILES, df))
+    carbon_dict = copy.deepcopy(make_target_carbon_clusters(target_SMILES, training_SMILES, df, feat=feat))
 
     out = []
 
@@ -933,7 +936,7 @@ def make_acqf_9_order(target_SMILES, training_SMILES, df):
         size -= 1
     return out, None
 
-def acqf_out(target_SMILES, training_SMILES, df, out, max_scores, batch_size=1, reg=None):
+def acqf_out(target_SMILES, training_SMILES, df, out, max_scores, batch_size=1, reg=None, feat="Selectivity"):
     """
     1. Output top molecule in out list that is not in training_SMILES
 
@@ -956,7 +959,8 @@ def acqf_out(target_SMILES, training_SMILES, df, out, max_scores, batch_size=1, 
     return training_SMILES, len(out) - batch_size, new_SMILES, max_scores
 
 ### FUNCTION 10  ###
-def acqf_10(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance=0.01, batch_size=1):
+def acqf_10(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balance=0.01, batch_size=1, alpha=1,
+            feat="Selectivity"):
     """
     1. get the product of uncertainty avg reactivity per carbon of the target molecule based on the training of n_repet models
     2. get the matrix distance between the target C and the remaining molecules C
@@ -975,8 +979,8 @@ def acqf_10(target_SMILES, training_SMILES, df, reg, n_repet=20, distance_balanc
     """
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
-    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet)
-    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_)
+    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet, feat=feat, alpha=alpha)
+    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_, feat=feat)
     score_by_smiles_weighted = select_smiles_2(df_dists, score, distance_balance = distance_balance)
     training_SMILES  = list(training_SMILES) 
     new_SMILES_lst   = []
@@ -1025,7 +1029,7 @@ def select_smiles_2(df_dists, score, distance_balance = 0.01):
     return score_by_smiles_weighted
 
 ### FUNCTION 11 ###
-def acqf_11(target_SMILES, training_SMILES, df, reg, lit_dict, n_repet=20, distance_balance=0.01, batch_size=1):
+def acqf_11(target_SMILES, training_SMILES, df, reg, lit_dict, n_repet=20, distance_balance=0.01, batch_size=1, feat="Selectivity"):
     """
     1. get the product of uncertainty avg reactivity per carbon of the target molecule based on the training of n_repet models
     2. get the matrix distance between the target C and the remaining molecules C
@@ -1045,8 +1049,8 @@ def acqf_11(target_SMILES, training_SMILES, df, reg, lit_dict, n_repet=20, dista
     """
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
-    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet)
-    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_)
+    score                    = rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, n_repet=n_repet, feat=feat)
+    df_dists                 = target_C_distance_to_remaining(target_SMILES, df, df_remaining_, feat=feat)
     score_by_smiles_weighted = select_smiles_2(df_dists, score, lit_dict, distance_balance = distance_balance)
     training_SMILES  = list(training_SMILES) 
     new_SMILES_lst   = []
@@ -1056,43 +1060,3 @@ def acqf_11(target_SMILES, training_SMILES, df, reg, lit_dict, n_repet=20, dista
         new_SMILES_lst.append(new_SMILES)
     
     return training_SMILES, len(score_by_smiles_weighted.index) - batch_size, new_SMILES_lst, list(score_by_smiles_weighted.values)  
-
-
-def select_smiles_3(df_dists, score, lit_dict, distance_balance = 0.01):
-    """
-    select_smiles_1, now with lit bias!
-    Inputs:
-        df_dists        : dataframe, with the distances between the target C and the remaining molecules C
-        score           : list, score of the target C
-        distance_balance: float, parameter to balance the distance with the score
-            Note that the distace distribution is not normal, it ranges from 0 to 1.4 with a main peak around 0.2 for one target SMILES tested, 
-            It might be advantageous to tune this parameter for each target SMILES 
-    Output:
-        score_by_smiles_weighted: Series, with the score of each remaining molecule, sorted from the best to the worst
-    """
-    df_selection = df_dists.copy()
-    # 1.2.1. balance nearest neighbors distance with score
-    for i, col in enumerate(df_selection.columns):
-        # the affinity between target C and potential tested molecules is:
-        # the product of the score of the target C with the inverse of it's distance to the candidate carbon
-        df_selection[col] = df_selection[col].map(lambda x: score[i]/(x+distance_balance)) # +0.05 to avoid division by 0 THIS CONTROLS THE BALANCE BETWEEN DISTANCE AND SCORE
-
-    # 1.2.2. compute a score per molecule in the remaining set: 
-    # sum over target C columns:
-    df_score        = df_selection.sum(axis=1)    
-    score_by_smiles = df_score.sum(axis=0, level='Reactant_SMILES')
-
-    # weight by the number of carbons in the molecule:
-    df_selection.drop(columns=df_selection.columns, inplace=True)
-    df_selection.reset_index(inplace=True)
-    df_selection.set_index('Reactant_SMILES', inplace=True)
-    df_selection['Atom_nº'] = df_selection.index.map(lambda x: 1)
-    df_num_atoms            = df_selection.sum(axis=0, level='Reactant_SMILES')
-
-    score_by_smiles_weighted = score_by_smiles/df_num_atoms['Atom_nº'] 
-
-    lit_bias = np.array([lit_dict[smi] + 1 for smi in score_by_smiles_weighted.index])
-    score_by_smiles_weighted = score_by_smiles_weighted * lit_bias
-    score_by_smiles_weighted.sort_values(ascending=False, inplace=True)
-
-    return score_by_smiles_weighted

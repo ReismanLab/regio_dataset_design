@@ -5,7 +5,7 @@
 import pandas as pd
 import numpy as np
 
-def top_n(df, n, loose = False):
+def top_n(df, n, loose = False, feat="Selectivity"):
     """
     df contains the following columns:
     - Reactant_SMILES
@@ -21,11 +21,11 @@ def top_n(df, n, loose = False):
     topn = []
     for smiles in df.Reactant_SMILES.unique():
         df_smi           = df[df.Reactant_SMILES == smiles]
-        df_smi_          = df_smi.sort_values('Selectivity', ascending = False)
+        df_smi_          = df_smi.sort_values(feat, ascending = False)
         atoms_order_true = df_smi_['Atom_nº'].values
         if loose == False:
-            df_smi       = df_smi.sort_values('Selectivity', ascending = True)
-        df_smi           = df_smi.sort_values('Predicted_Selectivity', ascending = False)
+            df_smi       = df_smi.sort_values(feat, ascending = True)
+        df_smi           = df_smi.sort_values(f'Predicted_{feat}', ascending = False)
         atoms_order_pred = df_smi['Atom_nº'].values
         good_count       = 0
         if atoms_order_true[0] in atoms_order_pred[:n]:
@@ -33,7 +33,7 @@ def top_n(df, n, loose = False):
         topn.append(good_count)
     return topn
 
-def top_avg(df, loose = False):
+def top_avg(df, loose = False, feat="Selectivity"):
     """
     df contains the following columns:
     - Reactant_SMILES
@@ -49,11 +49,11 @@ def top_avg(df, loose = False):
     topn = []
     for smiles in df.Reactant_SMILES.unique():
         df_smi           = df[df.Reactant_SMILES == smiles]
-        df_smi_          = df_smi.sort_values('Selectivity', ascending = False)
+        df_smi_          = df_smi.sort_values(feat, ascending = False)
         atoms_order_true = df_smi_['Atom_nº'].values
         if loose == False:
-            df_smi       = df_smi.sort_values('Selectivity', ascending = True)
-        df_smi           = df_smi.sort_values('Predicted_Selectivity', ascending = False)
+            df_smi       = df_smi.sort_values(feat, ascending = True)
+        df_smi           = df_smi.sort_values(f'Predicted_{feat}', ascending = False)
         atoms_order_pred = df_smi['Atom_nº'].values
         topn_            = 1
         while atoms_order_true[0] not in atoms_order_pred[:topn_]:

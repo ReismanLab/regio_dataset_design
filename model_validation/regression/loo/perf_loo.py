@@ -18,7 +18,7 @@ parser.add_argument('--run',
                     help='name of the folder to put the results in, if already taken will abort')
 parser.add_argument('--df_folder',
                     help='name of the folder to read the csvs from',
-                    default='preprocessed_reactions_no_unspec_no_intra')
+                    default='preprocessed_dioxirane_reactions')
 parser.add_argument('--rxn',
                     help='name of the rxn folder to read the csvs from',
                     default='dioxirane')
@@ -28,6 +28,9 @@ parser.add_argument('--model',
 parser.add_argument('--desc',
                     help="list of the models to use, can be all or a subset of 'BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur' or 'all'",
                     default='XTB Selected Custom')
+parser.add_argument('--y',
+                    help="The variable to predict, can be a descriptor or Selectivity (default)",
+                    default='Selectivity')
 
 args = parser.parse_args()
 if args.df_folder is None:
@@ -35,7 +38,7 @@ if args.df_folder is None:
     df_folder = str(args.df_folder)
 else:
     df_folder = str(args.df_folder)
-    if df_folder not in ['preprocessed_borylation_reactions', 'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
+    if df_folder not in ['preprocessed_borylation_reactions', 'preprocessed_dioxirane_reactions', 'preprocessed_reactions_no_unspec_no_intra_unnorm']:
         print(f"Please specify a folder to take csv from (C_H ox or Borylation) with --df_folder folder_name, folder_name should be:\n - preprocessed_borylation_reactions\n - preprocessed_reactions\n - preprocessed_reactions_no_unspec_center")
         exit()
     elif df_folder == 'preprocessed_borylation_reactions':
@@ -72,6 +75,9 @@ desc = args.desc.split()
 if desc == ['all']:
     desc = ['BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur']
 print(f"        Will be using the following descriptors: {desc}\n")
+
+obs = args.y
+print(f"        Will be predicting {obs}")
 
 sys.path.append(f"{base_cwd}/utils/")
 import modelling as md
@@ -138,46 +144,74 @@ df_sel     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_selec
 df_custom  = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_custom.csv", index_col=0)
 df_en1_ohe = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_en1_ohe.csv", index_col=0)
 
+
+feats_to_drop = ["DOI"]
+if obs != "Selectivity": 
+    feats_to_drop.append("Selectivity")
+
 features = {
-            'BDE'       : df_bde.drop(columns=["DOI"]),
-            'XTB'       : df_xtb.drop(columns=["DOI"]),
-            'DBSTEP'    : df_dbs.drop(columns=["DOI"]), 
-            'Gasteiger' : df_gas.drop(columns=["DOI"]),
-            'ENV-1'     : df_en1.drop(columns=["DOI"]),
-            'ENV-1-OHE' : df_en1_ohe.drop(columns=["DOI"]),
-            'ENV-2'     : df_en2.drop(columns=["DOI"]),
-            'Rdkit-Vbur': df_rdkVbur.drop(columns=["DOI"]),
-            'Selected'  : df_sel.drop(columns=["DOI"]),
-            'Custom'    : df_custom.drop(columns=["DOI"])
+            'BDE'       : df_bde.drop(columns=feats_to_drop),
+            'XTB'       : df_xtb.drop(columns=feats_to_drop),
+            'DBSTEP'    : df_dbs.drop(columns=feats_to_drop), 
+            'Gasteiger' : df_gas.drop(columns=feats_to_drop),
+            'ENV-1'     : df_en1.drop(columns=feats_to_drop),
+            'ENV-1-OHE' : df_en1_ohe.drop(columns=feats_to_drop),
+            'ENV-2'     : df_en2.drop(columns=feats_to_drop),
+            'Rdkit-Vbur': df_rdkVbur.drop(columns=feats_to_drop),
+            'Selected'  : df_sel.drop(columns=feats_to_drop),
+            'Custom'    : df_custom.drop(columns=feats_to_drop)
             }
+
+# find obs if it's not selectivity
+if obs != "Selectivity": 
+    obs_col = None # search for obs in all descriptor dataframes
+    for f in features:
+        if obs in features[f].columns:
+            obs_col = features[f][obs]
+    if obs_col is None:
+        assert False, "Observable not found in any descriptor dataframe, exiting."
+
+    for f in features: # add obs to all descriptor dataframes
+        features[f][obs] = obs_col
 
 features = {d: features[d] for d in desc}
 
+# update Reactive Atom col
+f = features[list(features.keys())[0]]
+top_at = []
+for s in f.Reactant_SMILES.unique():
+    f_sub = f.loc[f.Reactant_SMILES == s]
+    f_sub = f_sub.sort_values(obs, ascending=False)
+    reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
+    top_at.extend([reactive_at] * len(f_sub))
+
+for feat in features: # add obs to all descriptor dataframes
+    features[feat]["Reactive Atom"] = top_at
 
 ## performance evaluation
 # first print baseline:
-df_test = df_bde.copy()
-print(f"Baseline: {md.baseline(df_test)}, tested on {len(df_test.Reactant_SMILES.unique())} reactions")
+df_test = f.copy()
+print(f"Baseline: {md.baseline(df_test, feat=obs)}, tested on {len(df_test.Reactant_SMILES.unique())} reactions")
 
 results = pd.DataFrame(columns=['Model', 'Feature', 'TOP-1', 'TOP-2', 'TOP-3', 'TOP-5', 'TOP-AVG'])
 
 for m, model in models.items():
     for f, feature in features.items():
-        p, df_p = md.leave_one_out(feature, model)
+        p, df_p = md.leave_one_out(feature, model, feat=obs)
         print(f"{m} - {f}: {p}")
         df_p.to_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn_folder}/{folder}/pred_loo_{m}_{f}.csv")
         top_n = []
         for i in [1,2,3,5]:
-            top_n.append(md.get_top_n_accuracy(df_p, i))
+            top_n.append(md.get_top_n_accuracy(df_p, i, feat=obs))
 
-        print(f"TOP-1: {top_n[0]}, TOP-2: {top_n[1]}, TOP-3: {top_n[2]}, TOP-5: {top_n[3]}, TOP-AVG: {mt.top_avg(df_p)}")
+        print(f"TOP-1: {top_n[0]}, TOP-2: {top_n[1]}, TOP-3: {top_n[2]}, TOP-5: {top_n[3]}, TOP-AVG: {mt.top_avg(df_p, feat=obs)}")
         results = results.append({'Model'   : m,
                                   'Feature' : f,
                                   'TOP-1'   : top_n[0],
                                   'TOP-2'   : top_n[1],
                                   'TOP-3'   : top_n[2],
                                   'TOP-5'   : top_n[3],
-                                  'TOP-AVG' : mt.top_avg(df_p)
+                                  'TOP-AVG' : mt.top_avg(df_p, feat=obs)
                                   }, ignore_index=True)
         
 results.to_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn_folder}/{folder}/df_results.csv")

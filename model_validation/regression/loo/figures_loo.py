@@ -14,34 +14,26 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import argparse
 parser = argparse.ArgumentParser(description='Descriptor computation')
 parser.add_argument('--run',
-                    help='Folder with results files')
+                    help='Folder with results files',
+                    default = 'clean_run_01')
 parser.add_argument('--rxn',
                     help='Folder with preprocessed reactions', 
                     default = "dioxirane")
+parser.add_argument('--y',
+                    help='Variable to predict', 
+                    default = "Selectivity")
 
 args = parser.parse_args()
+folder = args.run
 
-if args.run == None:
-    folder = 'clean_run_01'
-else:
-    folder = args.run
-
-if args.rxn == None:
-    rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
-    rxn = "dioxirane"
-    print(f"Reaction default: {rxn}")
-elif args.rxn == 'borylation':
-    rxn = 'borylation'
-    rxn_folder = "preprocessed_borylation_reactions"
-    print(f"Reaction used: {rxn}")
-elif args.rxn == 'borylation_filt':
-    rxn = 'borylation_filt'
-    rxn_folder = "preprocessed_borylation_reactions"
+if args.rxn in ["dioxirane", "borylation", "borylation_filt"]:
+    rxn = args.rxn
     print(f"Reaction used: {rxn}")
 else:
-    rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
     rxn = "dioxirane"
     print(f"Reaction default: {rxn} and not the one provided: {args.rxn}")
+
+feat = args.y
 
 root = os.getcwd()
 try:
@@ -81,23 +73,25 @@ results = pd.DataFrame(columns=['Model', 'Feature', 'TOP-1', 'TOP-2', 'TOP-3', '
 if folder != 'average':
     for m, model in models.items():
         for f, feature in features.items():
-            try:
-                df_p = pd.read_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/pred_loo_{m}_{f}.csv", index_col=0)
-                print(f"{m} - {f} have been run in {folder}")
-                top_n = []
-                for i in [1,2,3,5]:
-                    top_n.append(md.get_top_n_accuracy(df_p, i))
-                results = results.append({'Model'   : m,
-                                        'Feature' : f,
-                                        'TOP-1'   : 100*top_n[0],
-                                        'TOP-2'   : 100*top_n[1],
-                                        'TOP-3'   : 100*top_n[2],
-                                        'TOP-5'   : 100*top_n[3],
-                                        'TOP-AVG' : mt.top_avg(df_p)
-                                        }, ignore_index=True)
-            except:
-                print(f"{m} - {f} have not been run in model_validation/regression/loo/{rxn}/{folder}/pred_loo_{m}_{f}.csv -- skipping")
-
+            file = f"pred_loo_{m}_{f}.csv"
+            if file not in os.listdir(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/"):
+                print(f"{m} - {f} have not been run in {folder}")
+                continue
+            
+            df_p = pd.read_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/pred_loo_{m}_{f}.csv", index_col=0)
+            print(f"{m} - {f} have been run in {folder}")
+            top_n = []
+            for i in [1,2,3,5]:
+                top_n.append(md.get_top_n_accuracy(df_p, i, feat=feat))
+            results = results.append({'Model'   : m,
+                                    'Feature' : f,
+                                    'TOP-1'   : 100*top_n[0],
+                                    'TOP-2'   : 100*top_n[1],
+                                    'TOP-3'   : 100*top_n[2],
+                                    'TOP-5'   : 100*top_n[3],
+                                    'TOP-AVG' : mt.top_avg(df_p, feat=feat)
+                                    }, ignore_index=True)
+            
     results.to_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/results_loo.csv", index=False)
 
 else:
@@ -112,16 +106,17 @@ else:
                     df_p = pd.read_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{fold}/pred_loo_{m}_{f}.csv", index_col=0)
                     top_n = []
                     for i in [1,2,3,5]:
-                        top_n.append(md.get_top_n_accuracy(df_p, i))
+                        top_n.append(md.get_top_n_accuracy(df_p, i, feat=feat))
                     res_ = res_.append({'Model'   : m,
                                             'Feature' : f,
                                             'TOP-1'   : 100*top_n[0],
                                             'TOP-2'   : 100*top_n[1],
                                             'TOP-3'   : 100*top_n[2],
                                             'TOP-5'   : 100*top_n[3],
-                                            'TOP-AVG' : mt.top_avg(df_p)
+                                            'TOP-AVG' : mt.top_avg(df_p, feat=feat)
                                             }, ignore_index=True)
-                except:
+                except Exception as e:
+                    print(e)
                     print(f"{m} - {f} have not been run in {fold} -- skipping")
 
         res_.to_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{fold}/results_loo.csv", index=False)

@@ -30,52 +30,34 @@ parser.add_argument('--vmax',
                     help='vmax')
 parser.add_argument('--rxn',
                     help='Folder with preprocessed reactions', 
-                    default = 'preprocessed_dioxirane_reactions')
+                    default = 'dioxirane')
 parser.add_argument('--draw',
                     help='Type of images: numbers or heatmap with colors: "colors" or "numbers"', 
                     default = "colors")
-parser.add_argument('--dataset',
-                    help='The dataset the runs were performed on, could be all the data (folders starting by "run_"), only the ones with specified stereo ("run_no_unspec_dia_") or the totally cleaned dataset (no unspecified data, no intra molecular reactions, protonated amines: "clean_run_)"', 
-                    default = "clean_run")
+parser.add_argument('--y',
+                    help='Observable that was predicted. Default Selectivity', 
+                    default = "Selectivity")
 
 args = parser.parse_args()
 
 folder = args.run
 rxn    = args.rxn
+obs = args.y
 
-if rxn == None:
-    rxn_folder = "preprocessed_reactions_no_unspec_no_intra"
-    rxn        = "dioxirane"
-    dataset    = "clean_run"
-    print(f"Reaction default: {rxn}")
-elif rxn == 'borylation':
+if rxn == 'borylation':
     rxn_folder = "preprocessed_borylation_reactions"
     dataset    = "run_"
+    norm_big_mol = 22
     print(f"Reaction: {rxn}")
 elif rxn == 'dioxirane':
     rxn_folder = "preprocessed_dioxirane_reactions"
-    dataset    = "clean_run"  
+    dataset    = "clean_run" 
+    norm_big_mol = 50 
     print(f"Reaction: {rxn}")
 else:
     print(f"Unexpected reaction: {rxn}.\n please give one of these: \n'borylation', 'dioxirane'")
     sys.exit()
 
-if rxn_folder in ['preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm']:
-    rxn          = 'borylation'
-    norm_big_mol = 22
-    dataset      = "run_"
-    print(f"Reaction used: {rxn}")
-
-elif rxn_folder in ['preprocessed_dioxirane_reactions', 'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra']:
-    rxn          = "dioxirane"
-    norm_big_mol = 50
-    dataset      = "clean_run"
-    print(f"Reaction used: {rxn}")
-
-else:
-    print(f"Unexpected folder name: {rxn_folder}.\n please give one of these: \n'preprocessed_reactions', 'preprocessed_reactions_no_unspec_center', 'preprocessed_reactions_no_unspec_no_intra'\n'preprocessed_borylation_reactions',  'preprocessed_borylation_reactions_unnorm'")
-    sys.exit()
-    
 draw = args.draw  
 
 root = os.getcwd()
@@ -89,30 +71,30 @@ sys.path.append(f"{base_cwd}/utils/")
 
 import metrics as mt    
 
-def get_top_avg(df, df_bde):
+def get_top_avg(df, df_bde, feat=obs):
     big_smiles = df.index.to_list()
     df_exp_ = df_bde[df_bde.Reactant_SMILES.isin(big_smiles)]
     df_exp  = pd.DataFrame()  
     for smiles in big_smiles:
         df_smi = df_exp_[df_exp_.Reactant_SMILES == smiles]
         y_pred = ast.literal_eval(df.loc[smiles, 'Y_pred'])
-        df_smi['Predicted_Selectivity'] = df_smi['Atom_nº'].apply(lambda x: y_pred[x])
+        df_smi[f'Predicted_{feat}'] = df_smi['Atom_nº'].apply(lambda x: y_pred[x])
         df_exp = pd.concat([df_exp, df_smi])
     try:
-        return mt.top_avg(df_exp.drop(columns=['Unnamed: 0']))
+        return mt.top_avg(df_exp.drop(columns=['Unnamed: 0'], feat=feat))
     except:
-        return mt.top_avg(df_exp)
+        return mt.top_avg(df_exp, feat=feat)
     
-def get_top_n(df, df_bde, n):
+def get_top_n(df, df_bde, n, feat=obs):
     big_smiles = df.index.to_list()
     df_exp_ = df_bde[df_bde.Reactant_SMILES.isin(big_smiles)]
     df_exp  = pd.DataFrame()  
     for smiles in big_smiles:
         df_smi = df_exp_[df_exp_.Reactant_SMILES == smiles]
         y_pred = ast.literal_eval(df.loc[smiles, 'Y_pred'])
-        df_smi['Predicted_Selectivity'] = df_smi['Atom_nº'].apply(lambda x: y_pred[x])
+        df_smi[f'Predicted_{feat}'] = df_smi['Atom_nº'].apply(lambda x: y_pred[x])
         df_exp = pd.concat([df_exp, df_smi])
-    out = mt.top_n(df_exp, n)
+    out = mt.top_n(df_exp, n, feat=feat)
     return float(np.sum(out))
     
 ## read results files
@@ -293,20 +275,18 @@ if folder != 'average':
         figname = file.replace('csv', 'png')
         figname = figname.replace('results/', '')
         figname = figname.replace('.png', f"_{draw}.png")
-        print(f"\n\nfigname: {figname}\n\n")
         df = pd.read_csv(file, index_col=0)
-
     except:
         try:
             file    = f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/eval_sm_{desc}_{model}.csv"
             figname = file.replace('csv', 'png')
             figname = figname.replace('results/', '')
             figname = figname.replace('.png', f"_{draw}.png")
-            print(f"\n\nfigname: {figname}\n\n")
             df = pd.read_csv(file, index_col=0)
         except:
             print(f"File {file} does not exist")
             exit()
+    print(f"\n\nfigname: {figname}\n\n")
 
 else:
     folders = os.listdir(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}")

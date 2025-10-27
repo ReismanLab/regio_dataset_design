@@ -55,7 +55,7 @@ def remove_large_molecules(df, target_SMILES, max_num_C=15):
     df.drop(columns=['num_C'], inplace=True)
     return df
 
-def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_reactions'):
+def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxirane_reactions', feat = "Selectivity"):
     options = ['custom', 'bde', 'xtb', 'gas', 'env1', 'env2', 'dbstep', 'selected']
 
     assert option in options, f"option should be in {options}"
@@ -71,23 +71,44 @@ def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_reaction
     df_select = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_selected.csv', index_col=0)
     df_custom = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_custom.csv', index_col=0)
 
-    if option == 'custom':
-        df = df_custom
-    elif option == 'bde':
-        df = df_bde
-    elif option == 'xtb':
-        df = df_xtb
-    elif option == 'gas':
-        df = df_gas
-    elif option == 'env1':
-        df = df_env1
-    elif option == 'env2':
-        df = df_env2
-    elif option == 'dbstep':
-        df = df_dbstep
-    elif option == 'selected':
-        df = df_select
-    return df
+    features = {
+            'bde'       : df_bde,
+            'xtb'       : df_xtb,
+            'dbstep'    : df_dbstep, 
+            'gs' : df_gas,
+            'env1'     : df_env1,
+            'env2'     : df_env2,
+            'selected'  : df_select,
+            'custom'    : df_custom}
+
+    if feat != "Selectivity":
+        # search for obs in all descriptor dataframes
+        obs_col = None 
+        for f in features:
+            if feat in features[f].columns:
+                obs_col = features[f][feat]
+        if obs_col is None:
+            assert False, "Observable not found in any descriptor dataframe, exiting."
+
+        # add obs to all descriptor dataframes
+        for f in features: 
+            features[f][feat] = obs_col
+
+        #find reactive atom
+        f = features[list(features.keys())[0]]
+        top_at = []
+        for s in f.Reactant_SMILES.unique():
+            f_sub = f.loc[f.Reactant_SMILES == s]
+            f_sub = f_sub.sort_values(feat, ascending=False)
+            reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
+            top_at.extend([reactive_at] * len(f_sub))
+        
+        # add reactive atom to all descriptor dataframes
+        for f in features: 
+            features[f]["Reactive Atom"] = top_at
+            features[f] = features[f].drop("Selectivity", axis=1)
+
+    return features[option]
 
 def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              target_SMILES,  # the target smiles
@@ -100,10 +121,11 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              selection_strategy,
              n_runs,
              alpha,
-             df_folder = 'preprocessed_reactions',
+             df_folder = 'preprocessed_dioxirane_reactions',
+             feat = "Selectivity"
              ):
     # get the descriptors and data
-    df = make_descriptors_basic(option=feature_choice, df_folder=df_folder)
+    df = make_descriptors_basic(option=feature_choice, df_folder=df_folder, feat=feat)
     df_small    = remove_large_molecules(df, target_SMILES)
 
     if tset_type == "cold":
@@ -130,12 +152,14 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
     reg = clone(reg_)
     if selection_strategy == "simple":
         top_5_scores_, smiles_, carbon_preds_, max_aqcf_score_ = evaluate_acqf(target_SMILES, training_SMILES_small, reg, df_small,
-                aqcf_type, batch_size=batch_size, distance_balance=distance_balance, n_runs=n_runs, n_repeat=n_repeat, alpha=alpha)
+                aqcf_type, batch_size=batch_size, distance_balance=distance_balance, n_runs=n_runs, n_repeat=n_repeat, alpha=alpha,
+                feat=feat, df_folder=df_folder)
     return top_5_scores_, smiles_, initial, carbon_preds_, max_aqcf_score_, df_remaining_small.columns
 
 def evaluate_acqf(target_smi, train_SMILES,
                         reg, df, acqf = 'random', n_runs=1,
-                        distance_balance=0.01, batch_size=1, n_repeat=10, alpha=1):
+                        distance_balance=0.01, batch_size=1, n_repeat=10, alpha=1, feat="Selectivity",
+                        df_folder="preprocessed_dioxirane_reactions"):
     # Perform acqf_1 evaluation:
     top_5_scores = []
     smiles = []
@@ -144,7 +168,8 @@ def evaluate_acqf(target_smi, train_SMILES,
     for i in tqdm(range(int(n_runs))):
         top_5_score_aqcf_, list_smiles_, C_pred_, max_aqcf_score_ = aq.eval_perf(target_smi, train_SMILES, df,
                                                      reg, acqf, acqf_args_dict = {'n_repet':n_repeat}, batch_size=batch_size,
-                                                     distance_balance=distance_balance, alpha=alpha)
+                                                     distance_balance=distance_balance, alpha=alpha, feat=feat,
+                                                     df_folder=df_folder)
         top_5_scores.append(top_5_score_aqcf_)
         smiles.append(list_smiles_)
         carbon_preds.append(C_pred_)

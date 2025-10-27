@@ -33,7 +33,7 @@ def extract_features(descriptor,
         'Gasteiger', 'XTB', 'DBSTEP', 'DFT', 'ENV-1', 'ENV-2', 'BDE', 'Rdkit-Vbur', 'AIMNET-EMB'
     return value: dataframe with a column for SMILES and a column containing a dictionary of descriptors for all atoms in that molecule
     """
-    
+
     if preprocess:
         num_reactions_file = pp.preprocess(file, smi_col=smi_col, rxn_folder=rxn_folder, atom=atom)
         df                 = pd.read_csv(num_reactions_file, index_col=0)
@@ -358,7 +358,7 @@ def prepare_featurization(descriptor,
 
     return df_c_ox   
 
-def leave_one_out(df_, reg, classif=False):
+def leave_one_out(df_, reg, classif=False, feat="Selectivity"):
     """
     df_:
     reg:
@@ -373,22 +373,22 @@ def leave_one_out(df_, reg, classif=False):
     for reactant in tqdm(df.loc[:, "Reactant_SMILES"].unique()):
         l_ = l.copy()
         l_.remove(reactant)
-        reg_ = train_model(l_, df, reg)
+        reg_ = train_model(l_, df, reg, feat=feat)
         if reg_ is not None:
-            bool_, y_pred = predict_site(reg_, reactant, df, classif=classif)
+            bool_, y_pred = predict_site(reg_, reactant, df, classif=classif, feat=feat)
             #print(f"reactant: {reactant}, bool: {bool_}, y_pred: {y_pred.values()}")
             if bool_:
                 count_true += 1
 
             idxs = df[df.loc[:, "Reactant_SMILES"] == reactant].index
-            df_out.loc[idxs, "Predicted_Selectivity"] = list(y_pred.values()) # y_pred
+            df_out.loc[idxs, f"Predicted_{feat}"] = list(y_pred.values()) # y_pred
         else:
             print(f"Issue training regressor with {reactant}")
     
     return count_true/len(l), df_out
 
 # modelling tools
-def train_model(reactant_list, df, reg):
+def train_model(reactant_list, df, reg, feat="Selectivity"):
     """
     Inputs:
         reactant_list: list of reactants to train the model
@@ -400,8 +400,8 @@ def train_model(reactant_list, df, reg):
     """
     df_c = df[df.loc[:, "Reactant_SMILES"].isin(reactant_list)]
 
-    X = df_c.drop(columns=["Reactant_SMILES", "Atom_nº", "Selectivity", "Reactive Atom"]).values
-    y = df_c.loc[:, "Selectivity"].values
+    X = df_c.drop(columns=["Reactant_SMILES", "Atom_nº", feat, "Reactive Atom"]).values
+    y = df_c.loc[:, feat].values
 
     reg_ = clone(reg)
     #try:
@@ -412,7 +412,7 @@ def train_model(reactant_list, df, reg):
     #    print(X, y)
     #    return None
 
-def predict_site(reg, reactant, df, classif=False):
+def predict_site(reg, reactant, df, classif=False, feat="Selectivity"):
     """
     Inputs:
         reg:       trained model
@@ -423,7 +423,7 @@ def predict_site(reg, reactant, df, classif=False):
         y_pred:    list of the predicted selectivities for each site
     """
     df_r     = df[df.loc[:, "Reactant_SMILES"] == reactant]
-    X        = df_r.drop(columns=["Reactant_SMILES", "Atom_nº", "Selectivity", "Reactive Atom"]).values    
+    X        = df_r.drop(columns=["Reactant_SMILES", "Atom_nº", feat, "Reactive Atom"]).values    
     if classif:
         y_pred   = reg.predict_proba(X)
         y_pred   = list(y_pred)
@@ -458,28 +458,32 @@ def predict_site(reg, reactant, df, classif=False):
         return False, predictions # y_pred
 
 
-def get_top_n_accuracy(df, n):
+def get_top_n_accuracy(df, n, feat="Selectivity"):
     accuracy = 0
     for reactant in df.Reactant_SMILES.unique():
+        df_sub = df[df.Reactant_SMILES == reactant]
+        df_sub = df_sub.sort_values(by=feat, ascending=False)
+        top1 =  df_sub['Atom_nº'].iloc[0] # get top1 atom no
+
         sub_df = df[df.Reactant_SMILES == reactant]
-        sub_df = sub_df.sort_values(by='Predicted_Selectivity', ascending=False)
+        sub_df = sub_df.sort_values(by=f'Predicted_{feat}', ascending=False)
         n_most_reactive_atoms = list(sub_df['Atom_nº'].values)[:n]
-        if sub_df['Reactive Atom'].unique()[0] in n_most_reactive_atoms:
+        if top1 in n_most_reactive_atoms:
             accuracy += 1
+
     return accuracy/len(df.Reactant_SMILES.unique())
 
-
-def baseline(df):
+def baseline_alt(df, feat="Selectivity"):
     """
     This baseline takes as an input a DataFrame that has the colums: 'Reactant_SMILES', 'Atom_nº', 'Selectivity', 'Reactive Atom'
     
     This baseline is pretty simple that selects:
 
-    1. The carbon with the smallest positive number of hydrogen bonded
-    2. In case of ambiguity: the atom with the most Csp2 neighbors
-    3. In case of ambiguity: chooses randomly betwee best candidates
+    1. Benzylic carbons when available
+    2. The carbon with the minimum number of hydrogens bonded to it
 
     returns a top-1 accuracy
+    This baseline performs slightly worse than the one reported below.
     """
     df = df[['Reactant_SMILES', 'Atom_nº', 'Reactive Atom', 'Selectivity']]
 
@@ -501,19 +505,89 @@ def baseline(df):
     pred_selectivity = []  
 
     for r in tqdm(df.Reactant_SMILES.unique()):
-        df_r  = df[df.Reactant_SMILES == r]
+
+        df_r  = df[df.Reactant_SMILES == r] # subset to specific reactant
         df_r_ = df_r.copy()
         num_C = len(df_r)
-        min_H = min(df_r.H_neighbors.values)
-        df_r  = df_r[df_r.H_neighbors == min_H]
+        df_benz = df_r[df_r.loc[:, 'Is_benzylic']]
+        if len(df_benz) > 0:
+            print("benzylic protons!")
+            df_r = df_benz
+        df_r = df_r.sort_values("H_neighbors", ascending=True)
+        reactive_at = df_r.loc[:, 'Atom_nº'].values[0]
+
+        for _ in range(num_C):
+            predicted_atom.append(reactive_at)
+
+        selectivity = [1 if x == reactive_at else 0 for x in df_r_.loc[:, 'Atom_nº'].values]
+        pred_selectivity += selectivity
+
+    df.loc[:, "Predicted_Atom"] = predicted_atom
+    df.loc[:, f"Predicted_{feat}"] = pred_selectivity
+    # analysis of the performance:
+
+    for k in [1,2,3,5]:
+        print(f"TOP-{k}: {get_top_n_accuracy(df, k, feat=feat)}")
+    print(f"TOP-AVG: {mt.top_avg(df, feat=feat)}")
+
+    count_true = 0 
+    for r in df.Reactant_SMILES.unique():
+        df_r  = df[df.Reactant_SMILES == r]
+        r_atom = df_r.loc[:, 'Reactive Atom'].unique()[0]
+
+        p_atom = df_r.loc[:, 'Predicted_Atom'].unique()[0]
+        if r_atom == p_atom:
+            count_true += 1
+
+    return count_true/len(df.Reactant_SMILES.unique())
+        
+
+def baseline(df, feat="Selectivity"):
+    """
+    This baseline takes as an input a DataFrame that has the colums: 'Reactant_SMILES', 'Atom_nº', 'Selectivity', 'Reactive Atom'
+    
+    This baseline is pretty simple that selects:
+
+    1. The carbon with the smallest positive number of hydrogen bonded
+    2. In case of ambiguity: the atom with the most Csp2 neighbors
+    3. In case of ambiguity: chooses randomly betwee best candidates
+
+    returns a top-1 accuracy
+    """
+    df = df[['Reactant_SMILES', 'Atom_nº', 'Reactive Atom', feat]]
+
+    H_neigbors  = []
+    C_neigbors  = []
+    Is_Benzylic = []
+
+    for r in df.Reactant_SMILES.unique():
+        for at_num in df[df.loc[:, 'Reactant_SMILES'] == r].loc[:, 'Atom_nº'].values:
+            H_neigbors.append(num_h_neigbors(r, at_num))
+            C_neigbors.append(num_c_neigbors(r, at_num))
+            Is_Benzylic.append(is_benzylic(r, at_num))
+            
+    df.loc[:, 'H_neighbors'] = H_neigbors
+    df.loc[:, 'C_neighbors'] = C_neigbors
+    df.loc[:, 'Is_benzylic'] = Is_Benzylic
+
+    predicted_atom   = []
+    pred_selectivity = []  
+
+    for r in tqdm(df.Reactant_SMILES.unique()):
+
+        df_r  = df[df.Reactant_SMILES == r] # subset to specific reactant
+        df_r_ = df_r.copy()
+        num_C = len(df_r)
+        min_H = min(df_r.H_neighbors.values) 
+        df_r  = df_r[df_r.H_neighbors == min_H] # subset to just those with the minimal number of Hs
 
         if len(df_r) == 1: # easy case
             reactive_at    = df_r.loc[:, 'Atom_nº'].values[0]
         else:
-            # check if all atoms are the same (not benzilic)
+            # check if all atoms are benzylic/non-benzylic
             if len(df_r.Is_benzylic.unique()) == 1: 
                 reactive_at = df_r.loc[:, 'Atom_nº'].values[0] # random attribution between remaining atoms
-            # take only the benzilic ones
+            # take only the benzylic ones
             else:
                 df_r = df_r[df_r.loc[:, 'Is_benzylic']]
                 if len(df_r) == 1:
@@ -521,7 +595,7 @@ def baseline(df):
                 else:
                     reactive_at = df_r.loc[:, 'Atom_nº'].values[0] # random attribution between remaining atoms
                     
-        for i in range(num_C):
+        for _ in range(num_C):
             predicted_atom.append(reactive_at)
         
         #print(f"reactant: {r}, reactive_at: {reactive_at}")
@@ -532,16 +606,18 @@ def baseline(df):
         pred_selectivity += selectivity
 
     df.loc[:, "Predicted_Atom"] = predicted_atom
-    df.loc[:, "Predicted_Selectivity"] = pred_selectivity
+    df.loc[:, f"Predicted_{feat}"] = pred_selectivity
     # analysis of the performance:
+
     for k in [1,2,3,5]:
-        print(f"TOP-{k}: {get_top_n_accuracy(df, k)}")
-    print(f"TOP-AVG: {mt.top_avg(df)}")
+        print(f"TOP-{k}: {get_top_n_accuracy(df, k, feat=feat)}")
+    print(f"TOP-AVG: {mt.top_avg(df, feat=feat)}")
 
     count_true = 0 
     for r in df.Reactant_SMILES.unique():
         df_r  = df[df.Reactant_SMILES == r]
         r_atom = df_r.loc[:, 'Reactive Atom'].unique()[0]
+
         p_atom = df_r.loc[:, 'Predicted_Atom'].unique()[0]
         if r_atom == p_atom:
             count_true += 1

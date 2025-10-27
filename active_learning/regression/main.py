@@ -53,7 +53,7 @@ parser.add_argument('--model',
 parser.add_argument('--selection_strat',
                     help='Additional selection strategies for acqf evaluation',
                     default="simple")
-parser.add_argument('--res', 
+parser.add_argument('--res',
                     help='Name for results folder',
                     default='test')
 parser.add_argument('--run', 
@@ -65,6 +65,9 @@ parser.add_argument('--df_folder',
 parser.add_argument('--alpha',
                     help='balance between uncertainty and reactivity weighting for the target site to orient selection alpha must be between 0 and 2',
                     default=1)
+parser.add_argument('--y',
+                    help='Observable to predict. Can be any computed descriptor or Selectivity (default)',
+                    default="Selectivity")
 
 args             = parser.parse_args()
 smi              = args.smi
@@ -85,6 +88,7 @@ res              = args.res
 run              = args.run
 df_folder        = args.df_folder
 alpha            = args.alpha
+obs              = args.y
 
 import os
 path = f"{base_cwd}/results/active_learning/regression/{res}"
@@ -124,7 +128,8 @@ params = {"target_SMILES": smi,
           "model": model,
           "selection_strategy": selection_strategy,
           "folder_for_descriptors": df_folder,
-          "alpha": alpha}
+          "alpha": alpha,
+          "obs": obs}
 
 print(params, flush=True)
 
@@ -135,7 +140,7 @@ def final_eval(smi, aqcf_type, run):
         s = smi
 
     if not os.path.exists(f"{path}/res_rf_{s}_{aqcf_type}_{run}_{batch}_{start}start_{feature_choice}.pkl"):
-        print(f"\n\nComputing {smi} with {aqcf_type} {run} {batch} {start} {feature_choice}\n\n", flush=True)
+        print(f"\n\nComputing {smi} with {aqcf_type} {obs} {run} {batch} {start} {feature_choice}\n\n", flush=True)
         t5, smis, initial, y, max_aqcf_score, cols = a.benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
                                                     smi,  # the target smiles
                                                     start, # warm or cold
@@ -147,7 +152,8 @@ def final_eval(smi, aqcf_type, run):
                                                     selection_strategy=selection_strategy,
                                                     n_runs=1,
                                                     alpha=alpha,
-                                                    df_folder=df_folder)
+                                                    df_folder=df_folder,
+                                                    feat=obs)
         params["cols"] = cols
 
         with open(f"{path}/res_rf_{s}_{aqcf_type}_{run}_{batch}_{start}start_{feature_choice}.pkl", "wb") as f:
