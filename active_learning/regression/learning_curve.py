@@ -37,6 +37,8 @@ parser.add_argument('--rxn',
 
 args = parser.parse_args()
 
+### argument parsing ###
+# folder data extraction
 folders = np.nan
 if args.folder == None:
     folder = 'clean_run'
@@ -48,6 +50,7 @@ else:
     else:
         print(f"\n\nFolder used: {folder}\n\n")
 
+# overwrite ?
 if args.overwrite == None:
     overwrite = False
     print(f"\n\nOverwrite not provided, will not overwrite {overwrite}\nMake sure you have a results pkl file already created!!! If not, retry with --overwrite True\n\n")
@@ -59,6 +62,7 @@ else:
     else: 
         overwrite = False
 
+# rxn type and corresponing AFs
 rxn = args.rxn
 if rxn == 'dioxirane':
     aqcf_list = ['random', 
@@ -72,10 +76,9 @@ elif rxn == 'borylation':
                  'acqf_2-1', 'acqf_3', 'acqf_4-1', 
                  'acqf_5', 'acqf_6', 'acqf_7', 'acqf_9']
     folder_desc = 'preprocessed_borylation_reactions'
-
+### end parsing ###
 
 #### UTILS FUNCTIONS
-
 ## metrics
 def get_metrics(df, smiles, carbon_preds, aqcf_list=aqcf_list):
     reac_smiles = []
@@ -108,7 +111,7 @@ def plot_evolution(ax, data, title=False, labels=['Top1', 'Top2', 'Top3', 'Top5'
     """
     data: list of list of scores
     """
-    #print(f"Data shape: {np.array(data).shape}")
+    print(f"Data shape: {np.array(data).shape}")
     colors      = ['black', 'blue', 'purple', 'orange', 'red', 'pink', 'brown']
     linewidths  = [5, 3.5, 2, 1, 1, 1, 1]
     num_acqf    = len(data[0])
@@ -183,7 +186,10 @@ def plot_summary(smiles, t5, df, _, carbo_preds, save=True, labels=['Top1', 'Top
     check_ = {}
     
     dict_name = dict(zip(range(len(aqcf_list)), aqcf_list))
+    print('Plot Summary Function')
+    print(f'dict_name: {dict_name}')
 
+    print(f't5: {t5}') 
     fig, ax = plt.subplots(4, 3, figsize=(12, 16))
     for i, ax_ in enumerate(ax.flatten()):
         # plot aquisition function evolution
@@ -356,6 +362,10 @@ for s in df.Reactant_SMILES:
     reac_smiles.append(s)
 
 df['Reactant_SMILES'] = reac_smiles
+
+### need to correct here df when the values of the target are not Selectivity ###
+
+### need to correct here df when the values of the target have been renormalized ###
 
 for smiles_1 in list(select_files.keys()):
     print(smiles_1)

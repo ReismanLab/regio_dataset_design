@@ -133,7 +133,7 @@ plt.ylim([-0.05, 1.05])
 plt.xlabel('# Experiments Realized')
 plt.ylabel('Average Top-1 Accuracy')
 
-plt.savefig(f"{folder}/lc_comp_tmp_{args.suffix}.png", dpi=300)
+plt.savefig(f"{base_cwd}/results/active_learning/regression/{folder}//lc_comp_tmp_{args.suffix}.png", dpi=300)
 
 smi_af_1 = smis[idx_acqf[0]]
 smi_af_2 = smis[idx_acqf[1]]    

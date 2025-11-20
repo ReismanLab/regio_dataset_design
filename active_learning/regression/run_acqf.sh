@@ -61,7 +61,7 @@ res='bde'
 b=1
 start='cold'
 feat='custom'
-n_repet=10
+n_repet=2 # default = 10 but to debug use 2
 db=1
 n_est=250
 max_feat=0.5
@@ -71,11 +71,12 @@ model="regression_rf"
 strat="simple"
 folder="preprocessed_dioxirane_reactions"
 obs="bde_avg"
+pred_max=False
 
 for smi in ${smis[@]}; do
   for acqf in ${acqfs[@]}; do
     for idx in $(seq $n_runs); do
-        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs
+        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs --pred_max $pred_max
     done
   done
 done
