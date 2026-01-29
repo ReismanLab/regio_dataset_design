@@ -404,13 +404,8 @@ def train_model(reactant_list, df, reg, feat="Selectivity"):
     y = df_c.loc[:, feat].values
 
     reg_ = clone(reg)
-    #try:
     reg_.fit(X, y)
     return reg_
-    #except:
-    #    print("Can't train model here... ?")
-    #    print(X, y)
-    #    return None
 
 def predict_site(reg, reactant, df, classif=False, feat="Selectivity"):
     """
@@ -424,16 +419,18 @@ def predict_site(reg, reactant, df, classif=False, feat="Selectivity"):
     """
     df_r     = df[df.loc[:, "Reactant_SMILES"] == reactant]
     X        = df_r.drop(columns=["Reactant_SMILES", "Atom_nº", feat, "Reactive Atom"]).values    
-    if classif:
+    
+    if classif: # do we use this classifier?
         y_pred   = reg.predict_proba(X)
         y_pred   = list(y_pred)
         y_pred   = [y[list(reg.classes_).index(1)] for y in y_pred]
-        if np.sum(y_pred) > 0:
+
+        if feat == "Selectivity" and np.sum(y_pred) > 0: # normalize to 100%
             y_pred   = 100*np.array(y_pred)/(np.sum(y_pred))
 
     else:
         y_pred   = reg.predict(X)
-        if np.sum(y_pred) > 0:
+        if feat == "Selectivity" and np.sum(y_pred) > 0: # normalize to 100%
             y_pred   = 100*np.array(y_pred)/(np.sum(y_pred))
         y_pred   = list(y_pred)
 
@@ -446,16 +443,12 @@ def predict_site(reg, reactant, df, classif=False, feat="Selectivity"):
     except:
         print(f"Can't predict {reactant}")
         print(f"max = {max(df_r.loc[:, 'Prediction'])}, predictions  = {df_r.loc[:, 'Prediction'].to_list()}")
-        return False, predictions # y_pred
+        return False, predictions
+    
     at_pred  = df_r.loc[idx_max, 'Atom_nº']
     at_true  = df_r.loc[idx_max, 'Reactive Atom']
-
-    if at_true == at_pred:
-        #print(reactant, at_true, at_pred)
-        return True, predictions # y_pred
-    else:
-        #print(reactant, at_true, at_pred)
-        return False, predictions # y_pred
+    
+    return at_true == at_pred, predictions
 
 
 def get_top_n_accuracy(df, n, feat="Selectivity"):

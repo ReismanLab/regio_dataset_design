@@ -55,7 +55,7 @@ def remove_large_molecules(df, target_SMILES, max_num_C=15):
     df.drop(columns=['num_C'], inplace=True)
     return df
 
-def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxirane_reactions', feat = "Selectivity"):
+def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxirane_reactions', feat = "Selectivity", maximize = True):
     options = ['custom', 'bde', 'xtb', 'gas', 'env1', 'env2', 'dbstep', 'selected']
 
     assert option in options, f"option should be in {options}"
@@ -75,9 +75,9 @@ def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxiran
             'bde'       : df_bde,
             'xtb'       : df_xtb,
             'dbstep'    : df_dbstep, 
-            'gs' : df_gas,
-            'env1'     : df_env1,
-            'env2'     : df_env2,
+            'gs'        : df_gas,
+            'env1'      : df_env1,
+            'env2'      : df_env2,
             'selected'  : df_select,
             'custom'    : df_custom}
 
@@ -87,6 +87,8 @@ def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxiran
         for f in features:
             if feat in features[f].columns:
                 obs_col = features[f][feat]
+                if not maximize:
+                    obs_col = -1 * obs_col
         if obs_col is None:
             assert False, "Observable not found in any descriptor dataframe, exiting."
 
@@ -124,6 +126,7 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              df_folder = 'preprocessed_dioxirane_reactions',
              feat = "Selectivity"
              ):
+    
     # get the descriptors and data
     df = make_descriptors_basic(option=feature_choice, df_folder=df_folder, feat=feat)
     df_small    = remove_large_molecules(df, target_SMILES)

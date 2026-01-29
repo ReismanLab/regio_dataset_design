@@ -4,12 +4,19 @@ import os
 from rdkit import Chem
 
 root = os.getcwd()
-
 try:
     base_cwd = os.getcwd().split('regio_dataset_design')[0]
     base_cwd = f"{base_cwd}/regio_dataset_design"
 except:
     raise ValueError("You are not in the right directory, need to be in the 'notebooks' directory or subdirectory of it.")
+
+sys.path.append(f"{base_cwd}/utils/")
+import modelling as md
+import metrics as mt
+
+pd.set_option('mode.chained_assignment', None)
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning) 
 
 import argparse
 ### Parse arguments
@@ -31,6 +38,9 @@ parser.add_argument('--desc',
 parser.add_argument('--y',
                     help="The variable to predict, can be a descriptor or Selectivity (default)",
                     default='Selectivity')
+parser.add_argument('--maximize',
+                    help="Predict the site with the highest value for y, or don't. T or F.",
+                    default='T')
 
 args = parser.parse_args()
 if args.df_folder is None:
@@ -78,14 +88,6 @@ print(f"        Will be using the following descriptors: {desc}\n")
 
 obs = args.y
 print(f"        Will be predicting {obs}")
-
-sys.path.append(f"{base_cwd}/utils/")
-import modelling as md
-import metrics as mt
-
-pd.set_option('mode.chained_assignment', None)
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning) 
 
 ## import models
 from sklearn.svm import SVR
@@ -168,6 +170,11 @@ if obs != "Selectivity":
     for f in features:
         if obs in features[f].columns:
             obs_col = features[f][obs]
+            
+            # assess maximizing/minimizing:
+            if args.maximize == "F":
+                obs_col = -1 * obs_col
+
     if obs_col is None:
         assert False, "Observable not found in any descriptor dataframe, exiting."
 
@@ -187,6 +194,15 @@ for s in f.Reactant_SMILES.unique():
 
 for feat in features: # add obs to all descriptor dataframes
     features[feat]["Reactive Atom"] = top_at
+
+# drop features without any descriptors
+bad_descs = []
+for feat in features:
+    if len(features[feat].columns) == len([obs, 'Reactant_SMILES', 'Atom_nº', 'Reactive Atom']):
+        bad_descs.append(feat)
+
+for feat in bad_descs:
+    del features[feat]
 
 ## performance evaluation
 # first print baseline:

@@ -70,19 +70,21 @@ models =  {'LR'         : 0,
 
 results = pd.DataFrame(columns=['Model', 'Feature', 'TOP-1', 'TOP-2', 'TOP-3', 'TOP-5', 'TOP-AVG'])
 
-if folder != 'average':
+if folder != 'average': # why does this exist?
     for m, model in models.items():
         for f, feature in features.items():
             file = f"pred_loo_{m}_{f}.csv"
+
             if file not in os.listdir(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/"):
                 print(f"{m} - {f} have not been run in {folder}")
                 continue
-            
-            df_p = pd.read_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/pred_loo_{m}_{f}.csv", index_col=0)
-            print(f"{m} - {f} have been run in {folder}")
+
+            df_p = pd.read_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/{folder}/{file}", index_col=0)
+
             top_n = []
             for i in [1,2,3,5]:
                 top_n.append(md.get_top_n_accuracy(df_p, i, feat=feat))
+
             results = results.append({'Model'   : m,
                                     'Feature' : f,
                                     'TOP-1'   : 100*top_n[0],
