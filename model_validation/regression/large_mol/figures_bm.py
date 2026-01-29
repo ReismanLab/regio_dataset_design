@@ -10,6 +10,8 @@ import warnings
 pd.set_option('mode.chained_assignment', None)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+# TODO: some versioning problems here with matplotlib
+# I also don't know if this is working to generate the figures right smh
 ### Parse arguments
 recompute = True
 
@@ -37,6 +39,9 @@ parser.add_argument('--draw',
 parser.add_argument('--y',
                     help='Observable that was predicted. Default Selectivity', 
                     default = "Selectivity")
+parser.add_argument('--maximize',
+                    help="Predict the site with the highest value for y, or don't. T or F.",
+                    default='T')
 
 args = parser.parse_args()
 
@@ -74,7 +79,7 @@ import metrics as mt
 def get_top_avg(df, df_bde, feat=obs):
     big_smiles = df.index.to_list()
     df_exp_ = df_bde[df_bde.Reactant_SMILES.isin(big_smiles)]
-    df_exp  = pd.DataFrame()  
+    df_exp  = pd.DataFrame() 
     for smiles in big_smiles:
         df_smi = df_exp_[df_exp_.Reactant_SMILES == smiles]
         y_pred = ast.literal_eval(df.loc[smiles, 'Y_pred'])
@@ -88,7 +93,7 @@ def get_top_avg(df, df_bde, feat=obs):
 def get_top_n(df, df_bde, n, feat=obs):
     big_smiles = df.index.to_list()
     df_exp_ = df_bde[df_bde.Reactant_SMILES.isin(big_smiles)]
-    df_exp  = pd.DataFrame()  
+    df_exp  = pd.DataFrame()      
     for smiles in big_smiles:
         df_smi = df_exp_[df_exp_.Reactant_SMILES == smiles]
         y_pred = ast.literal_eval(df.loc[smiles, 'Y_pred'])
@@ -96,24 +101,65 @@ def get_top_n(df, df_bde, n, feat=obs):
         df_exp = pd.concat([df_exp, df_smi])
     out = mt.top_n(df_exp, n, feat=feat)
     return float(np.sum(out))
-    
+
+def add_observable(feat=obs):
+    ## import data - featurization
+    df_xtb     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_xtb.csv", index_col=0)
+    df_gas     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_gas.csv", index_col=0)
+    df_dbs     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_dbstep.csv", index_col=0)
+    df_en1     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_en1.csv", index_col=0)
+    df_en2     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_en2.csv", index_col=0)
+    df_bde     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_bde.csv", index_col=0)
+    df_rdkVbur = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_rdkVbur.csv", index_col=0)
+    df_sel     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_selected.csv", index_col=0)
+    df_custom  = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_custom.csv", index_col=0)
+    df_en1_ohe = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_en1_ohe.csv", index_col=0)
+
+    feats_to_drop = ["DOI", "Selectivity"]
+    features = {
+            'BDE'       : df_bde.drop(columns=feats_to_drop),
+            'XTB'       : df_xtb.drop(columns=feats_to_drop),
+            'DBSTEP'    : df_dbs.drop(columns=feats_to_drop), 
+            'Gasteiger' : df_gas.drop(columns=feats_to_drop),
+            'ENV-1'     : df_en1.drop(columns=feats_to_drop),
+            'ENV-1-OHE' : df_en1_ohe.drop(columns=feats_to_drop),
+            'ENV-2'     : df_en2.drop(columns=feats_to_drop),
+            'Rdkit-Vbur': df_rdkVbur.drop(columns=feats_to_drop),
+            'Selected'  : df_sel.drop(columns=feats_to_drop),
+            'Custom'    : df_custom.drop(columns=feats_to_drop)
+            }
+
+    obs_col = None # search for obs in all descriptor dataframes
+    for f in features:
+        if obs in features[f].columns:
+            obs_col = features[f][obs]
+            
+            # assess maximizing/minimizing:
+            if args.maximize == "F":
+                obs_col = -1 * obs_col
+
+    if obs_col is None:
+        assert False, "Observable not found in any descriptor dataframe, exiting."
+
+    features["BDE"][obs] = obs_col
+    return features["BDE"]
+
 ## read results files
 def get_df_res(rxn, folder, rxn_folder, base_cwd, recompute=False): # if recompute is True, will recompute the results
-    if recompute == False:
-        try:
-            print(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/df_results.csv")
-            df_results = pd.read_csv(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/df_results.csv", index_col=0)
-        except:
-            print(f"Could not read {rxn}/{folder}/df_results.csv")
-            recompute = True
-
-    if recompute:
+    try:
+        print(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/df_results.csv")
+        df_results = pd.read_csv(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/df_results.csv", index_col=0)
+    except:
+        print(f"Could not read {rxn}/{folder}/df_results.csv")
         print(f"Recomputing {rxn}/{folder}/df_results.csv")
         files = os.listdir(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}")
         files = [f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}/{folder}/" + f for f in files if 'eval_bm' in f]
         files = [f for f in files if '.csv' in f]
 
         df_bde     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_bde.csv", index_col=0)
+        if obs != "Selectivity":
+            df_bde = add_observable(feat=obs)
+
         df_results = pd.DataFrame(columns=['Descriptor', 'Model', 'TOP1', 'TOP2', 'TOP3', 'TOPAVG'])
 
         for f in files:
@@ -133,7 +179,6 @@ def get_df_res(rxn, folder, rxn_folder, base_cwd, recompute=False): # if recompu
 if folder != 'average':
     df_results = get_df_res(rxn, folder, rxn_folder, base_cwd, recompute=recompute)
     df_res_std = None
-
 else:
     folders = os.listdir(f"{base_cwd}/results/model_validation/regression/large_mol/{rxn}")
     folders = [f for f in folders if 'run' in f]
@@ -161,6 +206,7 @@ else:
     def multiply(df1, df2):
         df = pd.DataFrame(df1.values*df2.values, columns=df1.columns, index=df1.index)
         return df
+    
     # compute standard deviation
     df_res_sub = df_res_all[0] - df_results
     df_res_std = multiply(df_res_sub, df_res_sub) 
@@ -177,11 +223,11 @@ else:
     df_results.reset_index(inplace=True) 
 
     # save results
+    # TODO: fix this: will overwrite
     df_results.to_csv(f"df_mean_runs.csv")
     df_res_std.to_csv(f"df_std_runs.csv")
 
 ## plot heatmaps
-    
 df_bde     = pd.read_csv(f"{base_cwd}/data/descriptors/{rxn_folder}/df_bde.csv", index_col=0)
 
 try:
@@ -338,6 +384,8 @@ for i, smiles in enumerate(sorted(list(df.index))):
         # could add a standard deviation here...
 
     # normalize ypred:
+    # TODO: fix this, should only normalize if feat is Selectivity
+
     y_pred_max = np.max(list(y_pred.values()))
     y_pred_min = min(list(y_pred.values()))
     y_pred = {k: (v - y_pred_min) / (y_pred_max - y_pred_min) for k, v in y_pred.items()}

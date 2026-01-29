@@ -33,6 +33,9 @@ parser.add_argument('--model',
 parser.add_argument('--y',
                     help="observable to predict. Any descriptor, or Selectivity by default",
                     default='Selectivity')
+parser.add_argument('--maximize',
+                    help="Predict the site with the highest value for y, or don't. T or F.",
+                    default='T')
 
 args = parser.parse_args()
 if args.run == None:
@@ -149,6 +152,10 @@ if obs != "Selectivity":
     for f in features:
         if obs in features[f].columns:
             obs_col = features[f][obs]
+            if args.maximize == 'F':
+                print(f"Minimizing {obs}")
+                obs_col = -1 * obs_col
+                
     if obs_col is None:
         assert False, "Observable not found in any descriptor dataframe, exiting."
 
