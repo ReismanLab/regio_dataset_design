@@ -146,7 +146,11 @@ def visualize_regio_exp(smiles, df,
 # making videos of predictions along the training of a model on a target molecule
 # note should be able to adapt this function to any acquisition function
 import os
-import cv2
+try:
+    import cv2
+except:
+    print("Could not import cv2, you might have trouble trying to make video animations... but the rest should be fine.")
+
 import modelling as md
 from random import randrange
 from sklearn.ensemble import RandomForestRegressor

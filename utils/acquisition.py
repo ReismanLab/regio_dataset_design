@@ -38,7 +38,15 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
         target_SMILES  : str, SMILES of the target molecule
         training_SMILES: list, of SMILES of the training molecules
         df             : dataframe, with the training data for all molecules 
+        reg            : sklearn model
         acqf           : str, acquisition function to be used
+        acqf_args_dict : dict,
+        batch_size     : int, default = 1, batch size
+        distance_balance: float, default = 0.01, this parameters weighs the relative contribution of the similarity score and uncertainty/reactivity score in the model-informed AFs (1 and 10)
+        n_repet        : int,  default =20, the number of models in the ensemble for uncertainty evaluation
+        alpha          : int, default = 1,
+        feat           : str, default = "Selectivity", the name of the feature or experimental parameter used as a target for prediction and active learning dataset design
+        df_folder      : str, default = "preprocessed_dioxirane_reactions", name of the folder with the descriptors and parameters features
     Output:
         score_by_smiles_weighted: Series, with the score of each remaining molecule, sorted from the best to the worst
     """

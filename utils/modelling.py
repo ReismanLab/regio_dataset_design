@@ -388,13 +388,14 @@ def leave_one_out(df_, reg, classif=False, feat="Selectivity"):
     return count_true/len(l), df_out
 
 # modelling tools
-def train_model(reactant_list, df, reg, feat="Selectivity"):
+def train_model(reactant_list, df, reg, feat="Selectivity", ascending=True):
     """
     Inputs:
         reactant_list: list of reactants to train the model
         df:            dataframe with the features of the reactant at least, can contain more, but not necessary. 
                        Has to contain the columns: 'Reactant_SMILES', 'Atom_nº', 'Selectivity', 'Reactive Atom'
         reg:           sklearn regressor
+        feat:          str, column name with the feature
     Output:
         reg_:          trained model
     """
