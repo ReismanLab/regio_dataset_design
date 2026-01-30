@@ -74,9 +74,6 @@ parser.add_argument('--alpha',
 parser.add_argument('--y',
                     help='Observable to predict. Can be any computed descriptor or Selectivity (default)',
                     default="Selectivity")
-parser.add_argument('--pred_max',
-                    help='Decides whether the top site corresponds to the maximum or minimum of the observable to predict. by default True means that we look for the maximum',
-                    default=True)
 
 args             = parser.parse_args()
 smi              = args.smi
@@ -98,7 +95,6 @@ run              = args.run
 df_folder        = args.df_folder
 alpha            = args.alpha
 obs              = args.y
-pred_max         = args.pred_max
 
 import os
 path = f"{base_cwd}/results/active_learning/regression/{res}"
@@ -139,8 +135,7 @@ params = {"target_SMILES": smi,
           "selection_strategy": selection_strategy,
           "folder_for_descriptors": df_folder,
           "alpha": alpha,
-          "obs": obs,
-          "pred_max": pred_max}
+          "obs": obs}
 
 print(params, flush=True)
 
@@ -164,8 +159,7 @@ def final_eval(smi, aqcf_type, run):
                                                     n_runs=1,
                                                     alpha=alpha,
                                                     df_folder=df_folder,
-                                                    feat=obs,
-                                                    pred_max=pred_max)
+                                                    feat=obs)
         params["cols"] = cols
 
         with open(f"{path}/res_rf_{s}_{aqcf_type}_{run}_{batch}_{start}start_{feature_choice}.pkl", "wb") as f:

@@ -176,6 +176,7 @@ else:
         os.mkdir(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/average/")
     except:
         pass
+    
     results.to_csv(f"{base_cwd}/results/model_validation/regression/loo/{rxn}/average/results_loo.csv", index=False)
     
 
@@ -194,8 +195,6 @@ except:
 round_ = 2
 
 print("Plotting results")
-#print(f"\n\n{results}\n\n") 
-#print(f"\n\n{df_res_std}\n\n")
 
 for col in ['TOP-1', 'TOP-2', 'TOP-3', 'TOP-5', 'TOP-AVG']:
     table = results.pivot("Feature", "Model", col) 

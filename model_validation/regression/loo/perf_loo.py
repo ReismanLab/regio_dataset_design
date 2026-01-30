@@ -30,51 +30,40 @@ parser.add_argument('--rxn',
                     help='name of the rxn folder to read the csvs from',
                     default='dioxirane')
 parser.add_argument('--model',
-                    help="list of the models to use, can be all or a subset of 'RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR' or 'all'",
+                    help="list of the models to use, can be \"all\" or a subset of 'RF-OPT-XTB', 'RF2', 'MLP', 'MLP2', 'SVR', 'KNN', 'GPR', 'LR' or 'all'",
                     default='RF2 KNN SVR LR')
 parser.add_argument('--desc',
-                    help="list of the models to use, can be all or a subset of 'BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur' or 'all'",
+                    help="list of the models to use, can be \"all\" or a subset of 'BDE', 'Gasteiger', 'DBSTEP', 'XTB', 'Selected', 'Custom', 'ENV-1', 'ENV-2', 'ENV-1-OHE', 'Rdkit-Vbur' or 'all'",
                     default='XTB Selected Custom')
 parser.add_argument('--y',
                     help="The variable to predict, can be a descriptor or Selectivity (default)",
                     default='Selectivity')
-parser.add_argument('--maximize',
-                    help="Predict the site with the highest value for y, or don't. T or F.",
-                    default='T')
 
 args = parser.parse_args()
 if args.df_folder is None:
-    print(f"Taking default folder preprocessed_reactions_no_unspec_no_intra")
-    df_folder = str(args.df_folder)
-else:
-    df_folder = str(args.df_folder)
-    if df_folder not in ['preprocessed_borylation_reactions', 'preprocessed_dioxirane_reactions', 'preprocessed_reactions_no_unspec_no_intra_unnorm']:
-        print(f"Please specify a folder to take csv from (C_H ox or Borylation) with --df_folder folder_name, folder_name should be:\n - preprocessed_borylation_reactions\n - preprocessed_reactions\n - preprocessed_reactions_no_unspec_center")
-        exit()
-    elif df_folder == 'preprocessed_borylation_reactions':
-        rxn_folder = 'borylation_filt'
-    elif df_folder == 'preprocessed_reactions_no_unspec_center':
-        rxn_folder = 'dioxirane'
-    else:
-        rxn_folder = 'dioxirane'
+    print(f"Taking default folder preprocessed_dioxirane_reactions")
 
+df_folder = str(args.df_folder)
+if df_folder not in os.listdir(f"{base_cwd}/data/descriptors/"):
+    print(f"df_folder {df_folder} not found in data/descriptors/ Exiting...")
+    exit()
+
+rxn_folder = str(args.rxn)    
 print(f"Reading csvs from {df_folder} folder")
 print(f"Writing csvs in {rxn_folder} folder")
 
+# make folder for results
 if args.run is None:
     print(f"Please specify a folder with --run folder_name")
     exit()
-else:
-   folder = str(args.run)
-   os.chdir(f"{base_cwd}/results/model_validation/regression/loo/{rxn_folder}")
-   folders = os.listdir('.')
-   print(folders)
-   if folder in folders:
-       print(f"{folder} is already in {folders}, please choose another name")
-       #exit()
-   else:
-       os.mkdir(folder)
-   os.chdir(root)
+
+folder = str(args.run)
+os.chdir(f"{base_cwd}/results/model_validation/regression/loo/{rxn_folder}")
+if folder in os.listdir('.'):
+    print(f"{folder} is already present, please choose another name. Exiting...")
+    exit()
+os.mkdir(folder)
+os.chdir(root)
 
 models = args.model.split()
 if models == ['all']:
@@ -135,77 +124,46 @@ dict_models =  {'LR'         : lr,
 models = {m: dict_models[m] for m in models}
 
 ## import data - featurization
-df_xtb     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_xtb.csv", index_col=0)
-df_gas     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_gas.csv", index_col=0)
-df_dbs     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_dbstep.csv", index_col=0)
-df_en1     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_en1.csv", index_col=0)
-df_en2     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_en2.csv", index_col=0)
-df_bde     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_bde.csv", index_col=0)
-df_rdkVbur = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_rdkVbur.csv", index_col=0)
-df_sel     = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_selected.csv", index_col=0)
-df_custom  = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_custom.csv", index_col=0)
-df_en1_ohe = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/df_en1_ohe.csv", index_col=0)
+dict_descs = {"BDE"        : "df_bde.csv",
+              "Gasteiger"  : "df_gas.csv",
+              "DBSTEP"     : "df_dbstep.csv",
+              "XTB"        : "df_xtb.csv",
+              "Selected"   : "df_selected.csv",
+              "Custom"     : "df_custom.csv",
+              "ENV-1"      : "df_en1.csv",
+              "ENV-1-OHE"  : "df_en1_ohe.csv",
+              "ENV-2"      : "df_en2.csv",
+              "Rdkit-Vbur" : "df_rdkVbur.csv"
+              }
 
+def find_reactive_at(f, obs):
+    top_at = []
+    for s in f.Reactant_SMILES.unique():
+        f_sub = f.loc[f.Reactant_SMILES == s]
+        f_sub = f_sub.sort_values(obs, ascending=False)
+        reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
+        top_at.extend([reactive_at] * len(f_sub))
+    return top_at
 
-feats_to_drop = ["DOI"]
-if obs != "Selectivity": 
-    feats_to_drop.append("Selectivity")
+features = {}
+for d in desc:
+    try:
+        df_temp = pd.read_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/{dict_descs[d]}", index_col=0)
+    except:
+        print(f"Descriptor {d} not found, skipping...")
+        continue
 
-features = {
-            'BDE'       : df_bde.drop(columns=feats_to_drop),
-            'XTB'       : df_xtb.drop(columns=feats_to_drop),
-            'DBSTEP'    : df_dbs.drop(columns=feats_to_drop), 
-            'Gasteiger' : df_gas.drop(columns=feats_to_drop),
-            'ENV-1'     : df_en1.drop(columns=feats_to_drop),
-            'ENV-1-OHE' : df_en1_ohe.drop(columns=feats_to_drop),
-            'ENV-2'     : df_en2.drop(columns=feats_to_drop),
-            'Rdkit-Vbur': df_rdkVbur.drop(columns=feats_to_drop),
-            'Selected'  : df_sel.drop(columns=feats_to_drop),
-            'Custom'    : df_custom.drop(columns=feats_to_drop)
-            }
+    if "Reactive Atom" not in df_temp.columns: # handling for new observables
+        df_temp["Reactive Atom"] = find_reactive_at(df_temp, obs)
+        df_temp.to_csv(f"{base_cwd}/data/descriptors/{args.df_folder}/{dict_descs[d]}")
 
-# find obs if it's not selectivity
-if obs != "Selectivity": 
-    obs_col = None # search for obs in all descriptor dataframes
-    for f in features:
-        if obs in features[f].columns:
-            obs_col = features[f][obs]
-            
-            # assess maximizing/minimizing:
-            if args.maximize == "F":
-                obs_col = -1 * obs_col
+    df_temp.drop(columns=["DOI"], inplace=True, errors='ignore')
+    features[d] = df_temp
 
-    if obs_col is None:
-        assert False, "Observable not found in any descriptor dataframe, exiting."
-
-    for f in features: # add obs to all descriptor dataframes
-        features[f][obs] = obs_col
-
-features = {d: features[d] for d in desc}
-
-# update Reactive Atom col
-f = features[list(features.keys())[0]]
-top_at = []
-for s in f.Reactant_SMILES.unique():
-    f_sub = f.loc[f.Reactant_SMILES == s]
-    f_sub = f_sub.sort_values(obs, ascending=False)
-    reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
-    top_at.extend([reactive_at] * len(f_sub))
-
-for feat in features: # add obs to all descriptor dataframes
-    features[feat]["Reactive Atom"] = top_at
-
-# drop features without any descriptors
-bad_descs = []
-for feat in features:
-    if len(features[feat].columns) == len([obs, 'Reactant_SMILES', 'Atom_nº', 'Reactive Atom']):
-        bad_descs.append(feat)
-
-for feat in bad_descs:
-    del features[feat]
 
 ## performance evaluation
 # first print baseline:
+f = features[list(features.keys())[0]] # select any feature set
 df_test = f.copy()
 print(f"Baseline: {md.baseline(df_test, feat=obs)}, tested on {len(df_test.Reactant_SMILES.unique())} reactions")
 

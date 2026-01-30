@@ -65,8 +65,6 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
                  'acqf_9' : acqf_out,
                  'acqf_10': acqf_10}
     
-    #print(f"\n\nacqf_args_dict keys:  {acqf_args_dict.keys()}\n\n", flush=True)
-
     try:
         distance_balance = acqf_args_dict['distance_balance']
         n_repet          = acqf_args_dict['n_repet']

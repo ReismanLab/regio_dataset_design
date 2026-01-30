@@ -55,90 +55,42 @@ def remove_large_molecules(df, target_SMILES, max_num_C=15):
     df.drop(columns=['num_C'], inplace=True)
     return df
 
-def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxirane_reactions', feat = "Selectivity", maximize = True):
+def find_reactive_at(f, obs):
+    top_at = []
+    for s in f.Reactant_SMILES.unique():
+        f_sub = f.loc[f.Reactant_SMILES == s]
+        f_sub = f_sub.sort_values(obs, ascending=False)
+        reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
+        top_at.extend([reactive_at] * len(f_sub))
+    return top_at
+
+def make_descriptors_basic(option = 'custom', df_folder = 'preprocessed_dioxirane_reactions', feat = "Selectivity"):
     """
     Input:
     option      : str, the type of descriptors to use
     df_folder   : str, the folder with the datasets
     feat        : str, the name of the parameter to use as a prediction target 
-    pred_max    : bool, if True then the model ranks the "most reactive atoms" as the atom that has the largest target values, otherwise it takes the minimum. 
     Output:
     features[option] : pd.DataFrame, formatted data frame with 
     """
-    options = ['custom', 'bde', 'xtb', 'gas', 'env1', 'env2', 'dbstep', 'selected']
-
-    assert option in options, f"option should be in {options}"
     # read_data
-
-    print(base_cwd)
-    df_bde    = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_bde.csv', index_col=0)
-    df_xtb    = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_xtb.csv', index_col=0)
-    df_gas    = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_gas.csv', index_col=0)
-    df_env1   = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_en1.csv', index_col=0)
-    df_env2   = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_en2.csv', index_col=0)
-    df_dbstep = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_dbstep.csv', index_col=0)
-    df_select = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_selected.csv', index_col=0)
-    df_custom = pd.read_csv(f'{base_cwd}/data/descriptors/{df_folder}/df_custom.csv', index_col=0)
-
-    features = {
-            'bde'       : df_bde,
-            'xtb'       : df_xtb,
-            'dbstep'    : df_dbstep, 
-            'gs'        : df_gas,
-            'env1'      : df_env1,
-            'env2'      : df_env2,
-            'selected'  : df_select,
-            'custom'    : df_custom}
-
-    if feat != "Selectivity":
-        # search for obs in all descriptor dataframes
-        obs_col = None 
-        for f in features: # look for feat in any of the proposed dataframes
-            if feat in features[f].columns:
-                obs_col = features[f][feat]
-                if not maximize:
-                    obs_col = -1 * obs_col
-        if obs_col is None:
-            assert False, "Observable not found in any descriptor dataframe, exiting."
-
-        # add obs to all descriptor dataframes
-        for f in features: 
-            features[f][feat] = obs_col # does that work if some dataframe have a different shape, for example if one compound could not be featurized with one method?
-
-        # find reactive atom, can do it on the first dataframe as they now all have that same column
-        f = features[list(features.keys())[0]]
-        top_at = []
-        for s in f.Reactant_SMILES.unique():
-            f_sub = f.loc[f.Reactant_SMILES == s]
-            if pred_max:
-                f_sub = f_sub.sort_values(feat, ascending=False) # looks for the maximum value
-            else:
-                f_sub = f_sub.sort_values(feat, ascending=True) # looks for the minimum value
-            reactive_at = f_sub.loc[:, 'Atom_nº'].values[0]
-            top_at.extend([reactive_at] * len(f_sub))
-        
-        # add reactive atom to all descriptor dataframes
-        for f in features: 
-            features[f]["Reactive Atom"] = top_at
-            features[f] = features[f].drop("Selectivity", axis=1)
+    dict_descs = {  'bde'       : 'df_bde.csv',
+                    'xtb'       : 'df_xtb.csv',
+                    'gas'       : 'df_gas.csv',
+                    'env1'      : 'df_en1.csv',
+                    'env2'      : 'df_en2.csv',
+                    'dbstep'    : 'df_dbstep.csv',
+                    'selected'  : 'df_selected.csv',
+                    'custom'    : 'df_custom.csv'}
+     
+    assert option in dict_descs.keys(), f"option should be in {dict_descs.keys()}"
     
-    # option to scale the target value between 0 and 100 with 100 being the best possible value -- idea = match selecitivity training and make sure high value correspond to desired property for the AF-Al to make sense
-    if feat != "Selectivity":
-         print(f"Renormalizing target values for {feat} such that values go from 0 to 100 with 100 being the most desirable value")
-         normalized_df = features[option]
-         max_ft = max(normalized_df[feat].values)
-         min_ft = min(normalized_df[feat].values)
-         assert max_ft != min_ft, "Observable is monotonous -- exiting."
-         normalized_df[feat] = normalized_df[feat].map(lambda x : 100 * (x - min_ft) / (max_ft - min_ft))
-         if pred_max != True:
-             print(f"Changing observable values such that original min values are large")
-             normalized_df[feat] = normalized_df[feat].map(lambda x : 100 - x)
-         features[option] = normalized_df
- 
-    # sanity check:
-    features[option].to_csv("features_prepared.csv")
-    
-    return features[option]
+    df = pd.read_csv(f"{base_cwd}/data/descriptors/{df_folder}/{dict_descs[option]}", index_col=0)
+
+    if "Reactive Atom" not in df.columns: # handling for new observables
+        df["Reactive Atom"] = find_reactive_at(df, feat)
+        df.to_csv(f"{base_cwd}/data/descriptors/{df_folder}/{dict_descs[option]}")
+    return df
 
 def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              target_SMILES,  # the target smiles
@@ -155,7 +107,7 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              feat = "Selectivity"
              ):
     # get the descriptors and data
-    df = make_descriptors_basic(option=feature_choice, df_folder=df_folder, feat=feat, pred_max = False)
+    df = make_descriptors_basic(option=feature_choice, df_folder=df_folder, feat=feat)
     df_small    = remove_large_molecules(df, target_SMILES)
 
     if tset_type == "cold":
@@ -180,10 +132,12 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
     df_training_small  = remove_large_molecules(df_training, target_SMILES)
     training_SMILES_small = df_training_small.Reactant_SMILES.unique()
     reg = clone(reg_)
+
     if selection_strategy == "simple":
         top_5_scores_, smiles_, carbon_preds_, max_aqcf_score_ = evaluate_acqf(target_SMILES, training_SMILES_small, reg, df_small,
                 aqcf_type, batch_size=batch_size, distance_balance=distance_balance, n_runs=n_runs, n_repeat=n_repeat, alpha=alpha,
                 feat=feat, df_folder=df_folder)
+        
     return top_5_scores_, smiles_, initial, carbon_preds_, max_aqcf_score_, df_remaining_small.columns
 
 def evaluate_acqf(target_smi, train_SMILES,

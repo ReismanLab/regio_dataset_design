@@ -69,14 +69,13 @@ max_depth=10
 min_samples=3
 model="regression_rf"
 strat="simple"
-folder="preprocessed_dioxirane_reactions"
+folder="preprocessed_dioxirane_reactions_bde"
 obs="bde_avg"
-pred_max=False
 
 for smi in ${smis[@]}; do
   for acqf in ${acqfs[@]}; do
     for idx in $(seq $n_runs); do
-        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs --pred_max $pred_max
+        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs
     done
   done
 done

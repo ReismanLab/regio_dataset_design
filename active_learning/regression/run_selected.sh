@@ -15,7 +15,7 @@ max_depth=10
 min_samples=3
 model="regression_rf"
 strat="simple"
-folder="preprocessed_dioxirane_reactions"
+folder="preprocessed_dioxirane_reactions_bde"
 alpha=1
 obs="bde_avg"
 
