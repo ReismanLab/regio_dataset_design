@@ -62,6 +62,9 @@ parser = argparse.ArgumentParser(description='Acquisition function result comput
 parser.add_argument('--path',
                     help='Input directory of pkl files in ../../results/active_learning, if "custom_db" will look for custom descriptors and plot all db values for AF-1',
                     default="regression/clean_run")
+parser.add_argument('--dataset',
+                    help='desc folder name under ../../data/descriptors/',
+                    default='preprocessed_dioxirane_reactions')
 parser.add_argument('--cluster',
                     help='Results filtered for a single cluster "macrocycle", "steroids", "amino-acid", "taxol", "misc" or "all" molecules',
                     default='all')
@@ -87,7 +90,7 @@ parser.add_argument('--acqf_lst',
                     help='List of acquisition functions to plot',
                     default="all")
 parser.add_argument('--paper_style',
-                    help='List of acquisition functions to plot',
+                    help='Paper style',
                     default=False)
 
 args           = parser.parse_args()
@@ -127,32 +130,9 @@ else:
     print(f"Output folder {out} already exists")
 
 # relate the dataset to the path
-if args.path.split('/')[1] in ["clean_run", "clean_run_db_0-1", "clean_run_db_0-01", "clean_run_xtb_db0-01_alpha1", "clean_run_selected_db0-01_alpha1"]:
-    dataset = "preprocessed_dioxirane_reactions"
-elif "borylation" in args.path.split('/')[1]:
-    dataset = "preprocessed_borylation_reactions"
+dataset = args.dataset
+if "borylation" in dataset:
     acqf_lst       = acqf_lst_bor
-else:
-    print(f"Cannot determine dataset for {args.path}")
-    exit()
-
-# special case for custom descriptors with old dataset - enables to have all db values for acqf_1
-if args.path == "custom_db": 
-    acqf_lst = ["acqf_1_db-1", "acqf_1_db-01", "acqf_1_db-001", 
-                "acqf_2", "acqf_3", "acqf_4", "acqf_5", "acqf_6",
-                "acqf_7", "acqf_8", "acqf_9", "random"]
-    acqf2col = {"acqf_1_db-1"  : "lightskyblue", 
-                "acqf_1_db-01" : "lightskyblue",
-                "acqf_1_db-001": "lightskyblue",
-                "acqf_2": "palegreen", 
-                "acqf_3": "palegreen",
-                "acqf_4": "palegreen",
-                "acqf_5": "plum", 
-                "acqf_6": "plum",
-                "acqf_7": "plum", 
-                "acqf_8": "plum", 
-                "acqf_9": "plum",
-                "random": "gray"}
 
 # case where not all acqf are included
 if aqcfs_included != "all":
@@ -354,29 +334,11 @@ def make_dist(acqf_lst, cluster, metric, dist_type, prefix, out, avg_run_data,
     plt.show()
     return res
 
-if args.path == "custom_db": # special case for custom descriptors with old dataset - enables to have all db values for acqf_1
-    fnames = []
-    paths = os.listdir("../../results/active_learning/regression")
-    paths = [p for p in paths if "custom_db" in p] # keep only custom descriptors
-    paths = [p for p in paths if "_b=" not in p]   # remove the batch experiments
-    print(f"Looking for files in {paths} directories")
-    for p in paths:
-        print(p)
-        path_       = f"../../results/active_learning/regression/{p}"
-        path_fnames = os.listdir(path_) 
-        path_fnames = [f for f in path_fnames if 'res_' in f]
-        fnames = [f for f in fnames if 'acqf_10' not in f] # remove acqf_10 for now
-        path_fnames = [f"../../results/active_learning/regression/{p}" + '/' + f for f in path_fnames if f[-3:] == "pkl"]
-        fnames += path_fnames
-    print(f"Found {len(fnames)} for {args.path}")
-    print(f"{fnames[0]}")
-
-else:        
-    fnames = os.listdir(path_)
-    fnames = [f for f in fnames if 'res_' in f]
-    fnames = [f"../../results/active_learning/{args.path}" + '/' + f for f in fnames if f[-3:] == "pkl"]
-    print(f"Found {len(fnames)} files in {path_}")
-    print(f"{fnames[0]}")
+fnames = os.listdir(path_)
+fnames = [f for f in fnames if 'res_' in f]
+fnames = [f"../../results/active_learning/{args.path}" + '/' + f for f in fnames if f[-3:] == "pkl"]
+print(f"Found {len(fnames)} files in {path_}")
+print(f"{fnames[0]}")
 
 all_smiles = {}
 for fname in sorted(fnames):
@@ -392,7 +354,8 @@ for fname in sorted(fnames):
 
 print(f"Acquisition function results for {len(all_smiles)} SMILES.")
 
-df     = pd.read_csv(f"../../data/descriptors/{dataset}/df_bde.csv", index_col=0)
+desc_files = os.listdir(f"../../data/descriptors/{dataset}/")
+df     = pd.read_csv(f"../../data/descriptors/{dataset}/{desc_files[0]}", index_col=0)
 smiles = df.Reactant_SMILES.unique()
 smiles = [Chem.MolToSmiles(Chem.MolFromSmiles(smi)) for smi in smiles]
 smiles = list(set(smiles))

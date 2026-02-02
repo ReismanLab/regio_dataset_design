@@ -30,52 +30,58 @@ parser.add_argument('--folder',
                     help='Folder with results files',
                     default='clean_run')
 parser.add_argument('--overwrite',
-                    help='If you need to overwrite the results files and recompute them')
-parser.add_argument('--rxn',
-                    help='Reaction to be used, default is dioxirane can be borylation.\nAttributes the folders with descriptors and results to plot the figures',
-                    default='dioxirane')
+                    help='If you need to overwrite the results files and recompute them',
+                    default="False")
+parser.add_argument('--desc_folder',
+                    help='Folder with descriptor files',
+                    default='preprocessed_dioxirane_reactions')
+parser.add_argument('--obs',
+                    help='Observation column name',
+                    default='Selectivity')
 
 args = parser.parse_args()
 
 ### argument parsing ###
 # folder data extraction
-folders = np.nan
-if args.folder == None:
-    folder = 'clean_run'
-    print(f"\n\nFolder not provided, using {folder}\n\n")  
-else:
-    folder = args.folder
-    if folder not in os.listdir(f"{base_cwd}/results/active_learning/regression/") and folder != 'custom_db':
-        raise ValueError(f"Folder {folder} not found in {base_cwd}/results/active_learning/regression/")
-    else:
-        print(f"\n\nFolder used: {folder}\n\n")
+folder = args.folder
+if folder not in os.listdir(f"{base_cwd}/results/active_learning/regression/") and folder != 'custom_db':
+    raise ValueError(f"Folder {folder} not found in {base_cwd}/results/active_learning/regression/")
 
 # overwrite ?
-if args.overwrite == None:
-    overwrite = False
-    print(f"\n\nOverwrite not provided, will not overwrite {overwrite}\nMake sure you have a results pkl file already created!!! If not, retry with --overwrite True\n\n")
-elif args.overwrite not in ['True', 'False']:
+if args.overwrite not in ['True', 'False']:
     raise ValueError("Overwrite should be True or False")
 else:
     if args.overwrite == 'True':
         overwrite = True
     else: 
         overwrite = False
+        print(f"\n\nWill not overwrite. \nMake sure you have a results pkl file already created!!! If not, retry with --overwrite True\n\n")
 
-# rxn type and corresponing AFs
-rxn = args.rxn
-if rxn == 'dioxirane':
-    aqcf_list = ['random', 
-                 'acqf_1-db0-01-a1', 'acqf_10',
-                 'acqf_2-1', 'acqf_3', 'acqf_4-1', 
-                 'acqf_5', 'acqf_6', 'acqf_7', 'acqf_9']
-    folder_desc = 'preprocessed_dioxirane_reactions'
-elif rxn == 'borylation':
-    aqcf_list = ['random', 
-                 'acqf_1', 'acqf_10',
-                 'acqf_2-1', 'acqf_3', 'acqf_4-1', 
-                 'acqf_5', 'acqf_6', 'acqf_7', 'acqf_9']
-    folder_desc = 'preprocessed_borylation_reactions'
+# find AFs
+af_list = []
+for f in os.listdir(f"{base_cwd}/results/active_learning/regression/{folder}"):
+    if not f.endswith(".pkl") or f.split("_")[0] == "results":
+        continue
+    af = f.split('_')[3] + '_' + f.split('_')[4]
+    if "random" in af:
+        af = "random"
+    if af not in af_list:
+        af_list.append(af)
+af_list = sorted(af_list)
+print(f"Acquisition functions found: {af_list}")
+
+# prune to 9 AFs for plotting
+if len(af_list) > 9: 
+    aqcf_list = []
+    if 'random' in af_list: 
+        aqcf_list.append('random')
+    af1s = [af for af in af_list if "acqf_1" in af]
+    other_afs = [af1s[0], "acqf_10", "acqf_2-1", "acqf_3", "acqf_4-1", "acqf_5", "acqf_8", "acqf_9", "acqf_6","acqf_7"]
+    for af in other_afs:
+        if len(aqcf_list) >= 10:
+            break
+        if af in af_list and af not in aqcf_list:
+            aqcf_list.append(af)
 ### end parsing ###
 
 #### UTILS FUNCTIONS
@@ -111,15 +117,12 @@ def plot_evolution(ax, data, title=False, labels=['Top1', 'Top2', 'Top3', 'Top5'
     """
     data: list of list of scores
     """
-    print(f"Data shape: {np.array(data).shape}")
     colors      = ['black', 'blue', 'purple', 'orange', 'red', 'pink', 'brown']
     linewidths  = [5, 3.5, 2, 1, 1, 1, 1]
     num_acqf    = len(data[0])
-    #print(f"Number of aquisition functions: {num_acqf}")
     data = [data[i][0] for i in range(len(data))]
-    #print(f"New data shape: {np.array(data).shape}")
     num_acqf    = len(data[0])
-    #print(f"New number of aquisition functions: {num_acqf}")
+
     mean_scores = np.mean(data, axis=0)
     var_scores  = np.var(data, axis=0)
     for i, j in enumerate(labels):
@@ -146,50 +149,13 @@ def draw_n_first_smiles(smiles_list_list, n=10):
     img = Draw.MolsToGridImage([Chem.MolFromSmiles(smi) for smi in unique_smiles])
     return unique_smiles
 
-### util data:
-df = pd.read_csv(f"{base_cwd}/data/descriptors/{folder_desc}/df_bde.csv", index_col=0) # chande
-
-## load data for random training:
-df_bde = pd.read_csv(f"{base_cwd}/data/descriptors/{folder_desc}/df_bde.csv", index_col=0) # chande
-df_xtb = pd.read_csv(f"{base_cwd}/data/descriptors/{folder_desc}/df_xtb.csv", index_col=0) # chande
-df_gas = pd.read_csv(f"{base_cwd}/data/descriptors/{folder_desc}/df_gas.csv", index_col=0) # chande
-
-## get a list of SMILES for training:
-df_custom = pd.concat([df_bde, df_gas, df_xtb[['Buried_Volume_C', 'Buried_Volume_H_max']]], axis=1)
-df_custom = df_custom.loc[:,~df_custom.columns.duplicated()].copy()
-
-def remove_large_molecules(df, max_num_C=15):
-    num_C = []
-    for smi in df.Reactant_SMILES:
-        mol = Chem.MolFromSmiles(smi)
-        num_C.append([at.GetSymbol() for at in mol.GetAtoms()].count('C'))
-    df['num_C'] = num_C
-    df = df[df.num_C <= max_num_C]
-    df.drop(columns=['num_C'], inplace=True)
-    return df
-
-df_custom_small = remove_large_molecules(df_custom, max_num_C=15)
-train_smiles    = df_custom_small.Reactant_SMILES.unique()
-
-## define model:    
-reg = RandomForestRegressor(n_estimators=250,
-                            max_features=0.5,
-                            max_depth=10,
-                            min_samples_leaf=3)
-
 def plot_img(target, y_pred):
     img = viz.visualize_regio_pred(target, y_pred)
     return img, None
 
 ### plot summary function:
 def plot_summary(smiles, t5, df, _, carbo_preds, save=True, labels=['Top1', 'Top2', 'Top3', 'Top5', 'Top10'], aqcf_list=aqcf_list):
-    check_ = {}
-    
     dict_name = dict(zip(range(len(aqcf_list)), aqcf_list))
-    print('Plot Summary Function')
-    print(f'dict_name: {dict_name}')
-
-    print(f't5: {t5}') 
     fig, ax = plt.subplots(4, 3, figsize=(12, 16))
     for i, ax_ in enumerate(ax.flatten()):
         # plot aquisition function evolution
@@ -207,7 +173,7 @@ def plot_summary(smiles, t5, df, _, carbo_preds, save=True, labels=['Top1', 'Top
         # plot molecule and predictions
         if i == 10:
             try:
-                img_ = viz.visualize_regio_exp(smiles, df, scale=1000)
+                img_ = viz.visualize_regio_exp(smiles, df, scale=1000, obs=args.obs)
                 img_.savefig('tmp.png', bbox_inches='tight')
                 ax_.imshow(img.imread('tmp.png'))
             except:
@@ -219,13 +185,17 @@ def plot_summary(smiles, t5, df, _, carbo_preds, save=True, labels=['Top1', 'Top
         if i == 11:
             y     = carbo_preds[0][0][0][-1]
             y_    = list(y.values())
+
             min_y = np.min(y_)
             max_y = np.max(y_)
             for i, y_i in enumerate(y_):
                 y_[i] = 100*(y_i - min_y) / (max_y - min_y) # normalize y
+            
             for i, key in enumerate(y.keys()):
                 y.update({key: y_[i]})
-            img_, y = plot_img(smiles, y)
+
+            #img_, y = plot_img(smiles, y)
+            img_ = viz.visualize_regio_pred(smiles, y)
             try:
                 img_.savefig('tmp.png', bbox_inches='tight')
                 ax_.imshow(img.imread('tmp.png'))
@@ -235,7 +205,7 @@ def plot_summary(smiles, t5, df, _, carbo_preds, save=True, labels=['Top1', 'Top
             ax_.axis("off")
             ax_.set_title('Predicted Ox.')
 
-            check_.update({smiles: y})
+            #check_.update({smiles: y})
     
     fig.suptitle(f"SMILES {_}", fontsize=16)
     plt.suptitle(smiles)
@@ -265,10 +235,7 @@ if overwrite:
         except:
             print(f"SMILES {smi} not valid")
             pass
-
-    print(f"TARGET SMILES: {smiles}")
     smiles = sorted(smiles)
-
     aqcfs  = aqcf_list
     
     batch  = [f.split('_')[-3] for f in files]
@@ -319,7 +286,6 @@ if overwrite:
                     print(f"res_rf_{smi}_{aqcf}_{i}_{batch}_{start_type}_{desc}.pkl not found")
                     pass 
 
-
             TOP5.append(top5)
             SMILES.append(smiles)
             Y_PRED.append(y_pred)
@@ -338,7 +304,6 @@ else:
     except:
         raise ValueError("No files foun, you might wat to check if you have a results pkl file already created, if not restart with --overwrite True")
     smiles = [f.split('_')[1] for f in files]
-    #smiles = [s for s in smiles if s != '1']
     batch = list(set([f.split('_')[-3] for f in files]))[0]
     start_type = list(set([f.split('_')[-2] for f in files]))[0]
     desc = list(set([f.split('_')[-1].split('.')[0] for f in files]))[0]
@@ -356,17 +321,16 @@ else:
 _ = 0
 reac_smiles = []
 
+df = [f for f in os.listdir(f"{base_cwd}/data/descriptors/{args.desc_folder}/") if desc in f][0]
+df = pd.read_csv(f"{base_cwd}/data/descriptors/{args.desc_folder}/{df}")
 for s in df.Reactant_SMILES:
     s = s.replace('/', '-')
     s = s.replace('\\', '-')
     reac_smiles.append(s)
-
 df['Reactant_SMILES'] = reac_smiles
-
 ### need to correct here df when the values of the target are not Selectivity ###
 
 ### need to correct here df when the values of the target have been renormalized ###
-
 for smiles_1 in list(select_files.keys()):
     print(smiles_1)
     with open(f"{base_cwd}/results/active_learning/regression/{folder}/{select_files[smiles_1]}", 'rb') as f:
