@@ -3,6 +3,7 @@
 data/.DS_Store
 data/descriptors/.DS_Store
 data/descriptors/smiles_descriptors/.DS_Store
+data/descriptors/smiles_descriptors/*json
 model_validation/.DS_Store
 model_validation/regression/.DS_Store
 model_validation/regression/large_mol/.DS_Store
