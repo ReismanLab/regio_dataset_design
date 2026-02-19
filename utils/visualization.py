@@ -19,7 +19,6 @@ def visualize_regio_pred(smiles, y_pred,
                          ): 
     """
     smiles: SMILES of the reactant
-    #y_pred: list of predicted values for each atom in the reactant
     y_pred a dict with indexes being atom num and keys being reactivity
     draw: 'colors' or 'numbers', colors gives a intensity map, numbers gives the values
     """
@@ -84,15 +83,16 @@ def visualize_regio_exp(smiles, df,
                          contourLines = 5,
                          step         = 0.001,
                          alpha        = 0.3,
-                         colorMap     = 'Spectral_r'):
+                         colorMap     = 'Spectral_r',
+                         obs          = "Selectivity"):
     """"
     plots the experimental reactivity of the reactant if the reactat has been investigated
     df: dataframe containing the experimental reactivity of the reactant
         requires columns : 'Atom_nº' and 'Selectivity'
     """
 
-    if 'Selectivity' not in df.columns or 'Atom_nº' not in df.columns:
-        print("The dataframe should contain the column 'Selectivity' and 'Atom_nº'")
+    if obs not in df.columns or 'Atom_nº' not in df.columns:
+        print(f"The dataframe should contain the column '{obs}' and 'Atom_nº'")
         raise ValueError
 
     smiles = Chem.CanonSmiles(smiles)
@@ -109,24 +109,27 @@ def visualize_regio_exp(smiles, df,
     for at in mol.GetAtoms():
         if at.GetSymbol() == 'C' and 'H' in [n.GetSymbol() for n in at.GetNeighbors()]:
             try:
-                at.SetProp('atomNote', str(round(sub_df[sub_df['Atom_nº'] == at.GetIdx()].Selectivity.values[0], 2)))
-                contribs.append(sub_df[sub_df['Atom_nº'] == at.GetIdx()].Selectivity.values[0])
+                at.SetProp('atomNote', str(round(sub_df[sub_df['Atom_nº'] == at.GetIdx()][obs].values[0], 2)))
+                contribs.append(sub_df[sub_df['Atom_nº'] == at.GetIdx()][obs].values[0])
             except:
-                #print(at.GetIdx(), " is probably discarded because of symmetry")
                 contribs.append(0)
                 pass
         else:
             contribs.append(0)
 
-    contribs = np.array(contribs)/np.max(contribs)
-    contribs = contribs.tolist()    
-
+    contribs = np.array(contribs) 
     mol = Chem.RemoveHs(mol)
 
     if draw == 'colors':   
         d2d = Draw.MolDraw2DCairo(350,300)
         dopts = d2d.drawOptions()
         dopts.setBackgroundColour((0,.9,.9,.3))
+
+        min_y = np.min(contribs)
+        max_y = np.max(contribs)
+        contribs = (contribs - min_y)/(max_y - min_y)
+        contribs = contribs.tolist() 
+
         fig = SimilarityMaps.GetSimilarityMapFromWeights(mol, contribs, 
                                                          colorMap=colorMap, 
                                                          contourLines=contourLines,

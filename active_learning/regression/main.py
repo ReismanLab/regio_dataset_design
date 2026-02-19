@@ -1,6 +1,7 @@
 # add path to utils
 import sys
 import os
+import numpy as np
 root = os.getcwd()
 
 try:
@@ -74,6 +75,9 @@ parser.add_argument('--alpha',
 parser.add_argument('--y',
                     help='Observable to predict. Can be any computed descriptor or Selectivity (default)',
                     default="Selectivity")
+parser.add_argument('--max_tset',
+                    help='Maximum number of training set molecules',
+                    default=np.inf)
 
 args             = parser.parse_args()
 smi              = args.smi
@@ -95,6 +99,10 @@ run              = args.run
 df_folder        = args.df_folder
 alpha            = args.alpha
 obs              = args.y
+try:
+    max_tset     = int(args.max_tset)
+except:
+    max_tset     = np.inf
 
 import os
 path = f"{base_cwd}/results/active_learning/regression/{res}"
@@ -135,7 +143,8 @@ params = {"target_SMILES": smi,
           "selection_strategy": selection_strategy,
           "folder_for_descriptors": df_folder,
           "alpha": alpha,
-          "obs": obs}
+          "obs": obs,
+          "max_tset": max_tset}
 
 print(params, flush=True)
 
@@ -159,7 +168,8 @@ def final_eval(smi, aqcf_type, run):
                                                     n_runs=1,
                                                     alpha=alpha,
                                                     df_folder=df_folder,
-                                                    feat=obs)
+                                                    feat=obs,
+                                                    max_tset=max_tset)
         params["cols"] = cols
 
         with open(f"{path}/res_rf_{s}_{aqcf_type}_{run}_{batch}_{start}start_{feature_choice}.pkl", "wb") as f:

@@ -32,7 +32,8 @@ from rdkit import DataStructs
 def eval_perf(target_SMILES, training_SMILES, df, reg, acqf, 
               acqf_args_dict = {}, batch_size=1, 
               distance_balance=0.01, n_repet=20, alpha=1, feat="Selectivity",
-              df_folder="preprocessed_dioxirane_reactions"):
+              df_folder="preprocessed_dioxirane_reactions",
+              max_tset = np.inf):
     """
     Inputs:
         target_SMILES  : str, SMILES of the target molecule
@@ -80,11 +81,14 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
     df_training              = df[df['Reactant_SMILES'].isin(training_SMILES)]
     
-    # training the model round0 
-    start_model              = md.train_model(df_training['Reactant_SMILES'].unique(), df_training.drop(columns=['DOI']), reg, feat=feat)
+    # training the model round0
+    cols_to_drop = ["DOI", "source"]
+    cols_to_drop = [c for c in cols_to_drop if c in df_training.columns]
+
+    start_model              = md.train_model(df_training['Reactant_SMILES'].unique(), df_training.drop(columns=cols_to_drop), reg, feat=feat)
 
     # use the model to predict the site reactivities of the target molecule
-    start_valid_, start_pred = md.predict_site(start_model, target_SMILES, df.drop(columns=['DOI']), classif=False, feat=feat)
+    start_valid_, start_pred = md.predict_site(start_model, target_SMILES, df.drop(columns=cols_to_drop), classif=False, feat=feat)
     
     carbo_reac_predictions.append(start_pred)
     start_pred               = list(start_pred.items())
@@ -128,10 +132,9 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
     acqf_args_dict['batch_size'] = batch_size
     acqf_args_dict['feat'] = feat
 
-    n_remaining = np.inf # some non-zero initialization
-    
+    n_remaining = np.inf
     max_scores_ = []
-    while n_remaining >= batch_size: # remove the 40 to get the original behavior
+    while n_remaining >= batch_size and len(training_SMILES) < max_tset: # remove the 40 to get the original behavior
         reg__                                                = clone(reg)
         acqf_args_dict["reg"]                                = reg__
         training_SMILES, n_remaining, new_SMILES, max_scores = acqf_dict[acqf](target_SMILES, training_SMILES, df, **acqf_args_dict)
@@ -140,8 +143,12 @@ def eval_perf(target_SMILES, training_SMILES, df, reg, acqf,
         smiles_added.extend(new_SMILES)
 
         reg__          = clone(reg)
-        new_model      = md.train_model(training_SMILES, df.drop(columns=['DOI']), reg__, feat=feat)
-        valid_, y_pred = md.predict_site(new_model, target_SMILES, df.drop(columns=['DOI']), classif=False, feat=feat)
+
+        cols_to_drop = ["DOI", "source"]
+        cols_to_drop = [c for c in cols_to_drop if c in df.columns]
+        new_model      = md.train_model(training_SMILES, df.drop(columns=cols_to_drop), reg__, feat=feat)
+        
+        valid_, y_pred = md.predict_site(new_model, target_SMILES, df.drop(columns=cols_to_drop), classif=False, feat=feat)
         y_pred_list    = list(y_pred[x] for x in y_pred.keys())
         top5           = get_top_5(df, y_pred_list, target_SMILES)
         top_5_scores.append(top5)
@@ -256,6 +263,9 @@ def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, feat,
     alpha          : float, parameter to balance the uncertainty with the reactivity
     """
     df_training = df[df['Reactant_SMILES'].isin(training_SMILES)]
+    cols_to_drop = ["DOI", "source"]
+    cols_to_drop = [c for c in cols_to_drop if c in df.columns]
+
     # the ranking is based on the uncertainty and the reactivity:
     preds = []
     for i in range(n_repet):
@@ -263,8 +273,8 @@ def rank_carbon_uncertainty(target_SMILES, training_SMILES, df, reg, feat,
         reg_.random_state = i
         reg_.neighbors    = i + 1
         rf_trained  = md.train_model(df_training['Reactant_SMILES'].unique(),
-                                      df_training.drop(columns=['DOI']), reg_, feat=feat)
-        bool_, pred = md.predict_site(rf_trained, target_SMILES, df.drop(columns=['DOI']), feat=feat)
+                                      df_training.drop(columns=cols_to_drop), reg_, feat=feat)
+        bool_, pred = md.predict_site(rf_trained, target_SMILES, df.drop(columns=cols_to_drop), feat=feat)
         preds.append(list(pred.values()))
 
     preds_mean = list(np.mean(preds, axis=0))
@@ -283,12 +293,16 @@ def target_C_distance_to_remaining(target_SMILES, df_custom, df_remaining, feat=
     target_C = df_custom[df_custom['Reactant_SMILES'] == target_SMILES]
     if len(target_C.DOI.unique()) != 1:
         print("WARNING: target molecule is not in only one reaction.... need to change target_C_distance_to_remaining function!")
-    target_C.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom'], inplace=True)
+    cols_to_drop = ["DOI", "source", 'Reactant_SMILES', feat, 'Reactive Atom']
+    cols_to_drop = [c for c in cols_to_drop if c in target_C.columns]
+    target_C.drop(columns=cols_to_drop, inplace=True)
     target_C.set_index('Atom_nº', inplace=True)
     X_t     = target_C.values
 
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining.drop(columns=['DOI', feat, 'Reactive Atom'])
+    cols_to_drop = ["DOI", "source", feat, 'Reactive Atom']
+    cols_to_drop = [c for c in cols_to_drop if c in df_remaining.columns]
+    remaining_molecules = df_remaining.drop(columns=cols_to_drop)
     remaining_molecules.set_index(['Reactant_SMILES', 'Atom_nº'] , inplace=True)
     X_r     = remaining_molecules.values
 
@@ -659,11 +673,15 @@ def get_carbon_scores(target_SMILES, df_custom, df_remaining, feat="Selectivity"
     target_C = df_custom[df_custom['Reactant_SMILES'] == target_SMILES]
     if len(target_C.DOI.unique()) != 1:
         print("WARNING: target molecule is not in only one reaction.... need to change target_C_distance_to_remaining function!")
-    target_C.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom', 'Atom_nº'], inplace=True)
+    cols_to_drop = ["DOI",'Reactant_SMILES', "source", feat, 'Reactive Atom', 'Atom_nº']
+    cols_to_drop = [c for c in cols_to_drop if c in target_C.columns]
+    target_C.drop(columns=cols_to_drop, inplace=True)
     X_t     = target_C.values
 
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
+    cols_to_drop = ["DOI",'Reactant_SMILES', "source", feat, 'Reactive Atom', 'Atom_nº']
+    cols_to_drop = [c for c in cols_to_drop if c in df_remaining.columns]
+    remaining_molecules = df_remaining.drop(columns=cols_to_drop)
     X_r     = remaining_molecules.values
 
     # get distance between remaining molecules C and target C carbons:
@@ -795,7 +813,10 @@ def get_carbon_clusters(target_SMILES, training_SMILES, df, feat="Selectivity"):
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
     df_remaining_            = df_remaining_.reset_index(drop=True)
-    rem_C = df_remaining_.drop(columns=['DOI', 'Reactant_SMILES', feat, 'Reactive Atom', 'Atom_nº'], inplace=False)
+    cols_to_drop = ["DOI",'Reactant_SMILES', "source", feat, 'Reactive Atom', 'Atom_nº']
+    cols_to_drop = [c for c in cols_to_drop if c in df_remaining_.columns]
+
+    rem_C = df_remaining_.drop(columns=cols_to_drop, inplace=False)
 
     rni = rng.integers(0, 1000, 1)[0]
     clustering = KMeans(n_clusters=10, random_state=rni).fit(rem_C)
@@ -879,13 +900,17 @@ def make_target_carbon_clusters(target_SMILES, training_SMILES, df, feat="Select
               sorted by which SMILES contains the carbon most similar to the target carbon
     """
     target_carbons = df.loc[df['Reactant_SMILES'] == target_SMILES].reset_index(drop=True)
-    target_carbons.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'], inplace=True)
+    cols_to_drop = ["DOI",'Reactant_SMILES', "source", feat, 'Reactive Atom', 'Atom_nº']
+    cols_to_drop = [c for c in cols_to_drop if c in target_C.columns]
+    target_carbons.drop(columns=cols_to_drop, inplace=True)
 
     df_remaining_            = df[df['Reactant_SMILES'].isin(training_SMILES) == False]
     df_remaining_            = df_remaining_[df_remaining_['Reactant_SMILES'] != target_SMILES]
     
     # get remaining molecules descriptors:
-    remaining_molecules = df_remaining_.drop(columns=['DOI', feat, 'Reactive Atom', 'Reactant_SMILES', 'Atom_nº'])
+    cols_to_drop = ["DOI",'Reactant_SMILES', "source", feat, 'Reactive Atom', 'Atom_nº']
+    cols_to_drop = [c for c in cols_to_drop if c in df_remaining_.columns]
+    remaining_molecules = df_remaining_.drop(columns=cols_to_drop)
     X_r     = remaining_molecules.values
 
     carbon_dict = {}

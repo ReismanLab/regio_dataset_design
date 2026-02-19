@@ -104,7 +104,8 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
              n_runs,
              alpha,
              df_folder = 'preprocessed_dioxirane_reactions',
-             feat = "Selectivity"
+             feat = "Selectivity",
+             max_tset=np.inf
              ):
     # get the descriptors and data
     df = make_descriptors_basic(option=feature_choice, df_folder=df_folder, feat=feat)
@@ -114,8 +115,16 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
         target_mol      =  Chem.MolFromSmiles(target_SMILES)
         training_SMILES = df_small[df_small.Reactant_SMILES != target_SMILES].Reactant_SMILES.unique()
         training_mols   = [Chem.MolFromSmiles(smi) for smi in training_SMILES]
-        mcs_res         = [MCS.FindMCS([target_mol, mol], ringMatchesRingOnly=True, matchValences=True).numAtoms for mol in training_mols]
-        idx             = np.argmax(mcs_res)
+        
+        idx=None
+        largest_atom_ct = 0
+        for i in tqdm(range(len(training_mols))):
+            mol = training_mols[i]
+            at_ct = MCS.FindMCS([target_mol, mol], ringMatchesRingOnly=True, matchValences=True).numAtoms
+            if  at_ct > largest_atom_ct:
+                largest_atom_ct = at_ct
+                idx = i
+
         initial = training_SMILES[idx]
         training_SMILES = [training_SMILES[idx]]
 
@@ -136,14 +145,15 @@ def benchmark_aqcf_on_smiles(aqcf_type,      # the type of acquisition function
     if selection_strategy == "simple":
         top_5_scores_, smiles_, carbon_preds_, max_aqcf_score_ = evaluate_acqf(target_SMILES, training_SMILES_small, reg, df_small,
                 aqcf_type, batch_size=batch_size, distance_balance=distance_balance, n_runs=n_runs, n_repeat=n_repeat, alpha=alpha,
-                feat=feat, df_folder=df_folder)
+                feat=feat, df_folder=df_folder, max_tset=max_tset)
         
     return top_5_scores_, smiles_, initial, carbon_preds_, max_aqcf_score_, df_remaining_small.columns
 
 def evaluate_acqf(target_smi, train_SMILES,
-                        reg, df, acqf = 'random', n_runs=1,
+                        reg, df, acqf, n_runs=1,
                         distance_balance=0.01, batch_size=1, n_repeat=10, alpha=1, feat="Selectivity",
-                        df_folder="preprocessed_dioxirane_reactions"):
+                        df_folder="preprocessed_dioxirane_reactions",
+                        max_tset=np.inf):
     # Perform acqf_1 evaluation:
     top_5_scores = []
     smiles = []
@@ -153,7 +163,8 @@ def evaluate_acqf(target_smi, train_SMILES,
         top_5_score_aqcf_, list_smiles_, C_pred_, max_aqcf_score_ = aq.eval_perf(target_smi, train_SMILES, df,
                                                      reg, acqf, acqf_args_dict = {'n_repet':n_repeat}, batch_size=batch_size,
                                                      distance_balance=distance_balance, alpha=alpha, feat=feat,
-                                                     df_folder=df_folder)
+                                                     df_folder=df_folder,
+                                                     max_tset=max_tset)
         top_5_scores.append(top_5_score_aqcf_)
         smiles.append(list_smiles_)
         carbon_preds.append(C_pred_)

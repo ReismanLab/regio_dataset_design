@@ -54,9 +54,10 @@
 
 smis=('CC(C)CCC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC[C@H]4CC(=O)CC[C@]4(C)[C@H]3CC[C@]12C')
 
-acqfs=('random' 'acqf_1' 'acqf_2-1' 'acqf_3' 'acqf_4-1' 'acqf_5' 'acqf_6' 'acqf_7' 'acqf_8' 'acqf_9' 'acqf_10')
+acqfs=('acqf_2-1')
+#acqfs=('random' 'acqf_1' 'acqf_2-1' 'acqf_3' 'acqf_4-1' 'acqf_5' 'acqf_6' 'acqf_7' 'acqf_8' 'acqf_9' 'acqf_10')
 n_runs=1
-res='bde'
+res='bde_ZINC'
 
 b=1
 start='cold'
@@ -69,13 +70,14 @@ max_depth=10
 min_samples=3
 model="regression_rf"
 strat="simple"
-folder="preprocessed_dioxirane_reactions_bde"
+folder="ZINC_cat_norm_bde"
 obs="bde_avg"
+max_tset=135
 
 for smi in ${smis[@]}; do
   for acqf in ${acqfs[@]}; do
     for idx in $(seq $n_runs); do
-        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs
+        python3 ./main.py --smi $smi --acqf $acqf --batch $b --start $start --n_repet $n_repet --db $db --feat $feat --n_est $n_est --max_feats $max_feat --max_depth $max_depth --min_samples_leaf $min_samples --model $model --selection_strat $strat --res $res --run $idx --df_folder $folder --y $obs --max_tset $max_tset
     done
   done
 done
